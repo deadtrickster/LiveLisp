@@ -1,0 +1,95 @@
+﻿(using	LiveLisp.Core.AST
+		System
+		System.Collections.Generic
+		LiveLisp.Core.Types
+		System.Linq
+		LiveLisp.Core.Reader
+		System.Reflection
+		LiveLisp.Core.Compiler
+		System.Reflection.Emit)
+		
+(in-namespace LiveLisp.Core.AST.Expressions
+	{class :internal ClrEnumExpression :base ClrClassExpression
+	
+		(:field :private Type baseType)
+		(:field :private  List<Pair<String Object>> enumMembers)
+		(:field :private string name)
+		(:field :private TypeAttributes tattrs)
+		
+		(:ctor ((int level) (StaticScope parent) (Expression parent))
+			:base (level scope parent)
+			(setq enumMembers {new List<Pair<String Object>>})
+		)
+		
+		(:method :public :static Expression Build((Cons cons) (int level) (StaticScope scope) (Expresson parent))
+			{!is cons.Cdr Cons
+				{throw new Exception ("defenum form is not a list.")}}
+			
+			{let ((items {as cons.Cdr Cons}) (currentState State.Start) (string name) (string baseTypeName) (ret {new ClrEnumExpression lebel scope parent}))
+				{foreach item in items
+					{switch currentState
+						(State.Start {!is item KeywordSymbol
+							(progn 
+								{if not {DynamicTypesHelper.GetStringFromDesignator item :out name}
+									{throw new Exception}}
+								(setq ret.name name)
+								(setq currentState State.EnumNameReached))
+								
+							(progn
+								(setq ret.tattrs {|= ret.tattrs {Enum.Parse {typeof TypeAttributes} {the item KeywordSymbol}.Name true}}))}
+							break)
+					
+						(State.EnumNameReached 
+							{!= item DefinedSymbols.KWStore
+								(progn 
+									(setq currentState State.EnumBaseReached)
+									(setq ret.baseType {typof int}))
+								(setq currentState State.EnumBaseTypeExpected)}
+							break)
+						
+						(State.EnumBaseTypeExpected	
+							{if not {DynamicTypesHelper.GetStringFromDesignator item :out name}
+								{throw new Exception}}
+							
+							(setq baseType (TypeCache.Instance.FindType baseTypeName(}))
+							{if not (Validator.ValidateBaseEnumType baseType)
+								{throw new Exception}}
+							(setq ret.baseType baseType)
+							(setq currentState State.EnumBaseReached)
+							break)
+												
+						(State.EnumNameReached	
+							(setq member {new Pair<string object>})
+							(is item Cons
+								(progn
+									(setq membernameproto (as item Cons).Car)
+									(let ((val (as item Cons).Second))
+										{if not (DynamicTypesHelper.IsImplicitlyConvertibleNumeric val.GetType ret.baseType)
+											{try
+												(
+													(Convert.ChangeType val ret.baseType)
+												)
+											 catch (InvalidCastException)
+												(
+													{throw new Exception}
+												)
+											}}
+										(setq member.Second val)))
+								(setq membernameproto item))
+							
+							{if not (DynamicTypesHelper.GetStringFromDesignator membernameproto :out memberName)
+								{throw new Exception}}
+							
+							(setq member.First memberName)
+							(ret.enumMembers.Add member)
+							break)										
+					}
+				}
+				(return-from Build ret)
+			)
+		)
+		
+		
+		
+	}
+)

@@ -1,0 +1,604 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Reflection.Emit;
+using LiveLisp.Core.AST;
+using LiveLisp.Core.AST.Expressions;
+using System.Reflection;
+using LiveLisp.Core.Types;
+using System.Collections;
+using LiveLisp.Core.AST.Expressions.CLR;
+
+namespace LiveLisp.Core.Compiler
+{
+    public class DefaultASTCompiler : IASTWalker
+    {
+        internal DefaultASTCompiler()
+        { 
+
+        }
+
+        public delegate object InterpreterDelegate();
+
+        ModuleBuilder ModuleBuilder
+        {
+            get;
+            set;
+        }
+
+        ILGenerator ILGen
+        {
+            get;
+            set;
+        }
+
+        MethodInfo Method;
+
+        int EvalCounter = 0;
+
+        Type DelegateType = typeof(InterpreterDelegate);
+
+        Type ObjectType = typeof(Object);
+
+        internal Delegate Compile(Expression rewrited)
+        {
+            CreateNewDynamic();
+
+            rewrited.Visit(this, context);
+
+            return CreateDynamic(rewrited.Context.VoidReturn);
+        }
+
+        internal void Compile(Expression rewrited, ILGenerator gen)
+        {
+            ILGen = gen;
+
+            rewrited.Visit(this, context);
+        }
+
+        private void CreateNewDynamic()
+        {
+            EvalCounter++;
+            Method = new DynamicMethod("EvalCall_" + EvalCounter, ObjectType, Type.EmptyTypes);
+
+            ILGen = (Method as DynamicMethod).GetILGenerator();
+        }
+
+        private Delegate CreateDynamic(bool voidreturn)
+        {
+            if (!voidreturn)
+                ILGen.EmitRet();
+            return (Method as DynamicMethod).CreateDelegate(DelegateType);
+        }
+
+        private void BuildArray(List<Expression> exps)
+        {
+            LocalBuilder arrstore = ILGen.DeclareLocal(typeof(object[]));
+
+            ILGen.EmitInt32(exps.Count);
+            ILGen.Emit(OpCodes.Newarr, typeof(object));
+
+            ILGen.EmitLocalSet(arrstore);
+
+            for (int i = 0; i < exps.Count; i++)
+            {
+                ILGen.EmitLocalGet(arrstore);
+                ILGen.EmitInt32(i);
+
+                exps[i].Visit(this);
+                //        if (exps[i].ReturnType.IsValueType)
+                //            ILGen.Emit(OpCodes.Box, exps[i].ReturnType);
+
+                ILGen.EmitStoreElement(typeof(object));
+            }
+
+            ILGen.EmitLocalGet(arrstore);
+        }
+
+        #region IASTWalker Members
+
+        public void BlockExpression(BlockExpression blockExpression)
+        {
+            if (blockExpression.Forms.Count == 0)
+                if (!blockExpression.Context.VoidReturn)
+                {
+                    ILGen.EmitNIL();
+                    return;
+                }
+
+            blockExpression.Context.BlockExitPoint = ILGen.DefineLabel();
+
+            for (int i = 0; i < blockExpression.Forms.Count; i++)
+            {
+                blockExpression.Forms[i].Visit(this);
+            }
+
+            ILGen.MarkLabel(blockExpression.Context.BlockExitPoint);
+        }
+
+        public void CallExpression(CallExpression callExpression)
+        {
+            callExpression.Function.Visit(this, callExpression);
+        }
+
+        private void EmitCall(List<MethodInfo> list, int argscount)
+        {
+            if (argscount > 13)
+                ILGen.EmitCall(list[14]);
+            else
+                ILGen.EmitCall(list[argscount]);
+        }
+
+        public void SymbolFunctionDesignator(SymbolFunctionDesignator symbolFunctionDesignator)
+        {
+            ILGen.EmitSymbol(symbolFunctionDesignator.Name);
+            ILGen.EmitPropertyGet(typeof(Symbol), "Function");
+        }
+
+        public void CatchExpression(CatchExpression catchExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ClrClassExpression(ClrClassExpression clrClassExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ClrDelegateExpression(ClrDelegateExpression clrDelegateExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ClrEnumExpression(ClrEnumExpression clrEnumExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ClrMethodExpression(ClrMethodExpression clrMethodExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ConstantExpression(ConstantExpression constantExpression)
+        {
+            if (!constantExpression.Context.VoidReturn)
+            {
+                ILGen.EmitConstant(constantExpression.Constant);
+            }
+        }
+
+        public void EvalWhenExpression(EvalWhenExpression evalWhenExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void FletExpression(FletExpression fletExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void LabelsExpression(LabelsExpression labelsExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void MacroletExpression(MacroletExpression macroletExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void FunctionExpression(FunctionExpression functionExpression)
+        {
+            functionExpression.Substitution.Visit(this);
+        }
+
+        public void GoExpression(GoExpression goExpression)
+        {
+            if (goExpression.Context.generator == null)
+                goExpression.Visit(this);
+            else
+                goExpression.Context.generator.Generate(ILGen);
+        }
+
+        public void IfExpression(IfExpression ifExpression)
+        {
+            Label elseLabel = ILGen.DefineLabel();
+
+            //note eval expression must be coerced to il specific bool i.e - true is not false, that is not null or 0;
+            ifExpression.Condition.Visit(this);
+            ILGen.Emit(OpCodes.Brfalse, elseLabel);
+            ifExpression.Then.Visit(this);
+
+            Label endLabel = ILGen.DefineLabel();
+            ILGen.JmpToLabel(endLabel);
+            ILGen.MarkLabel(elseLabel);
+            ifExpression.Else.Visit(this); //TODO: if(ifExpression.Else.WillEmitSomething) - т.е. если там будет константа и 
+            //VoidReturn то константа не будет эмитирована. соответственно всё это не нужно.
+            ILGen.MarkLabel(endLabel);
+
+        }
+
+        public void ILCodeExpression(ILCodeExpression iLCodeExpression)
+        {
+            iLCodeExpression.Instruction.Emit(ILGen);
+        }
+
+        public void LetExpression(LetExpression letExpression)
+        {
+            for (int i = 0; i < letExpression.NewBindings.Count; i++)
+            {
+                SyntaxBinding binding = letExpression.NewBindings[i];
+                binding.Slot.SetStore(ILGen.DeclareLocal());
+                binding.Slot.EmitSetProlog(ILGen);
+                binding.Value.Visit(this);
+                binding.Slot.EmitSet(ILGen);
+            }
+
+            for (int i = 0; i < letExpression.Forms.Count; i++)
+            {
+                letExpression.Forms[i].Visit(this);
+            }
+        }
+
+        public void LetStarExpression(LetStarExpression letStarExpression)
+        {
+            for (int i = 0; i < letStarExpression.NewBindings.Count; i++)
+            {
+                SyntaxBinding binding = letStarExpression.NewBindings[i];
+                binding.Slot.SetStore(ILGen.DeclareLocal());
+                binding.Slot.EmitSetProlog(ILGen);
+                binding.Value.Visit(this);
+                binding.Slot.EmitSet(ILGen);
+            }
+
+            for (int i = 0; i < letStarExpression.Forms.Count; i++)
+            {
+                letStarExpression.Forms[i].Visit(this);
+            }
+        }
+
+        public void LoadTimeValueExpression(LoadTimeValue loadTimeValue)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void LocallyExpression(LocallyExpression locallyExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void MultipleValueCallExpression(MultipleValueCallExpression multipleValueCallExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void MultipleValueProg1Expression(MultipleValueProg1Expression multipleValueProg1Expression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void PrognExpression(PrognExpression prognExpression)
+        {
+            foreach (var item in prognExpression.Forms)
+            {
+                item.Visit(this);
+            }
+        }
+
+        public void ProgvExpression(ProgvExpression progvExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ReturnFromExpression(ReturnFromExpression returnFromExpression)
+        {
+            returnFromExpression.Form.Visit(this);
+            ILGen.JmpToLabel(returnFromExpression.Context.ReturnFromBlock.Context.BlockExitPoint);
+        }
+
+        public void SetqExpression(SetqExpression setqExpression)
+        {
+            var assigns = setqExpression.Assings;
+            if (assigns.Count == 0)
+            {
+                if (!setqExpression.Context.VoidReturn)
+                    ILGen.EmitNIL();
+                return;
+            }
+            SyntaxBinding item;
+            for (int i = 0; i < assigns.Count-1; i++)
+            {
+                item = assigns[i];
+                item.Slot.EmitSetProlog(ILGen);
+                item.Value.Visit(this);
+                item.Slot.EmitSet(ILGen);
+            }
+
+            item = assigns[assigns.Count - 1];
+            item.Slot.EmitSetProlog(ILGen);
+            item.Value.Visit(this);
+            item.Slot.EmitSet(ILGen);
+
+
+            if (!setqExpression.Context.VoidReturn)
+                item.Slot.EmitGet(ILGen);
+        }
+
+        public void SymbolMacroletExpression(SymbolMacroletExpression symbolMacroletExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void TagbodyExpression(TagBodyExpression tagBodyExpression)
+        {
+            if (tagBodyExpression.Context.generator != null)
+                tagBodyExpression.Context.generator.Generate(ILGen);
+            else
+                tagBodyExpression.Visit(this);
+        }
+
+        public void TheExpression(TheExpression theExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ThrowExpression(ThrowExpression throwExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void UnwindProtectExpression(UnwindProtectExpression unwindProtectExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void VariableExpression(VariableExpression variableExpression)
+        {
+            if (variableExpression.Context.VoidReturn)
+                return;
+            Slot slot;
+            if (variableExpression.Slot != null)
+                slot = variableExpression.Slot;
+            else
+                slot = variableExpression.Context.GetSlot(variableExpression.VariableName);
+            slot.EmitGet(ILGen);
+        }
+
+        #endregion
+
+        #region IASTWalker Members
+
+
+        public void MethodInfoFunctionDesignator(MethodInfoFunctionDesignator methodInfoFunctionDesignator)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void EmitMethodInfoDesignatorCall(MethodInfoFunctionDesignator methodInfoFunctionDesignator, CallExpression callExpression)
+        {
+            //TODO: directly calls allowed only for class c# methods (only with params) add params handler
+            foreach (var item in callExpression.Parameters)
+            {
+                item.Visit(this);
+            }
+
+            ILGen.EmitCall(methodInfoFunctionDesignator.Name);
+        }
+
+        public void EmitMethodInfoDesignatorCall(SymbolFunctionDesignator symbolFunctionDesignator, CallExpression call)
+        {
+            // TODO: introduce function slots
+            ILGen.EmitSymbol(symbolFunctionDesignator.Name);
+            ILGen.EmitPropertyGet(typeof(Symbol), "Function");
+
+            int argscount = call.Parameters.Count;
+
+            if (argscount < 14)
+            {
+                foreach (var item in call.Parameters)
+                {
+                    item.Visit(this);
+                }
+            }
+            else
+            {
+                BuildArray(call.Parameters);
+            }
+
+            int methodid = argscount < 14 ? argscount : 15;
+
+            if (call.Context.SaveValues)
+                ILGen.EmitCall(LambdaCallEmitterHelper.ValuesInvokeMethods[methodid]);
+            else if (call.Context.VoidReturn)
+                ILGen.EmitCall(LambdaCallEmitterHelper.VoidInvokeMethods[methodid]);
+            else
+                ILGen.EmitCall(LambdaCallEmitterHelper.InvokeMethods[methodid]);
+                
+        }
+
+        #endregion
+
+        internal static void JustWalk(Expression defaultValue, ILGenerator ilgenerator)
+        {
+            new DefaultASTCompiler().Compile(defaultValue, ilgenerator);
+        }
+
+        #region IASTWalker Members
+
+
+        public void ClrNewExpression(ClrNewExpression clrNewExpression)
+        {
+            Type[] argTypes = new Type[clrNewExpression.Args.Count];
+
+            Type realType = clrNewExpression.Resolver.Type;
+
+            List<ConstructorInfo> list = new List<ConstructorInfo>(realType.GetConstructors().Where(ci => ci.GetParameters().Length == argTypes.Length));
+
+            ConstructorInfo constructor = null;
+
+            if (list.Count == 1)
+            {
+                constructor = list[0];
+            }
+            else
+            {
+
+            }
+
+            foreach (var item in clrNewExpression.Args)
+            {
+                item.Visit(this);
+            }
+
+            ILGen.EmitNew(constructor);
+        }
+
+        #endregion
+
+        #region IASTWalker Members
+
+
+        public void LambdaOverloadsExpression(LambdaOverloads lambdaOverloads)
+        {
+            TypeBuilder type;
+            LambdaList ll = lambdaOverloads.LambdaList;
+            int maxparams = ll.MaxParamsCount < 14 ? ll.MaxParamsCount : 13;
+
+            CLRMethodImporter.EmitConstructor(lambdaOverloads.Name, out type, ll, maxparams, CLRMethodImporter.NonZeroValuesLambdaType);
+
+            for (int i = 0; i < 15; i++)
+            {
+                if (lambdaOverloads.Overloads[i] != null)
+                    EmitOverload(type, lambdaOverloads.Overloads[i], i);
+            }
+
+            var _type = type.CreateType();
+
+            ILGen.EmitString(lambdaOverloads.Name.Name);
+            ILGen.EmitNew(_type.GetConstructor(new Type[] { typeof(string) }));
+        }
+
+        private void EmitOverload(TypeBuilder type, LambdaOverload lambdaOverload, int i)
+        {
+            var newmethod = type.DefineMethod("ValuesInvoke", CLRMethodImporter.attrs, typeof(MultipleValues), LambdaCallEmitterHelper.argsLists[i]);
+
+            DefaultASTCompiler methodCompiler = new DefaultASTCompiler();
+            var generator = newmethod.GetILGenerator();
+            methodCompiler.Compile(lambdaOverload, generator);
+            var temp = generator.DeclareLocal();
+            var vallocal = generator.DeclareLocal(typeof(MultipleValues));
+
+            Label nulllabel = generator.DefineLabel();
+            Label endlabel = generator.DefineLabel();
+
+            generator.EmitLocalSet(temp);
+            generator.EmitLocalGet(temp);
+            generator.Emit(OpCodes.Isinst, typeof(MultipleValues));
+            generator.EmitLocalSet(vallocal);
+            generator.EmitLocalGet(vallocal);
+            generator.Emit(OpCodes.Brfalse, nulllabel); // null
+            generator.EmitLocalGet(vallocal);
+            generator.Emit(OpCodes.Br, endlabel);
+            generator.MarkLabel(nulllabel);
+            generator.EmitLocalGet(temp);
+            generator.EmitCall(MultipleValues.Values1);
+            generator.MarkLabel(endlabel);
+            generator.EmitRet();
+        }
+
+        public void LambdaOverload(LambdaOverload lambdaOverload)
+        {
+            for (int i = 0; i < lambdaOverload.LocalSlots.Count; i++)
+            {
+                lambdaOverload.LocalSlots[i].SetStore(ILGen.DeclareLocal());
+            }
+
+            for (int i = 0; i < lambdaOverload.Forms.Count; i++)
+            {
+                lambdaOverload.Forms[i].Visit(this);
+            }
+        }
+
+        #endregion
+
+        #region IASTWalker Members
+
+
+        public void ClrIfExpression(ClrIfExpression clrIfExpression)
+        {
+            Label elseLabel = ILGen.DefineLabel();
+
+            //note eval expression must be coerced to il specific bool i.e - true is not false, that is not null or 0;
+            clrIfExpression.Condition.Visit(this);
+            ILGen.Emit(OpCodes.Brfalse, elseLabel);
+            clrIfExpression.Then.Visit(this);
+
+            Label endLabel = ILGen.DefineLabel();
+            ILGen.JmpToLabel(endLabel);
+            ILGen.MarkLabel(elseLabel);
+            clrIfExpression.Else.Visit(this); //TODO: if(ifExpression.Else.WillEmitSomething) - т.е. если там будет константа и 
+            //VoidReturn то константа не будет эмитирована. соответственно всё это не нужно.
+            ILGen.MarkLabel(endLabel);
+        }
+
+        #endregion
+
+        #region IASTWalker Members
+
+
+        public void ClrConstantExpression(ClrConstantExpression clrConstantExpression)
+        {
+            if (!clrConstantExpression.Context.VoidReturn)
+            {
+                ILGen.EmitConstant(clrConstantExpression.Constant, clrConstantExpression.Context.Box, false);
+            }
+        }
+
+        #endregion
+
+        #region IASTWalker Members
+
+
+        public void EmitFunctionDesignatorCall(FunctionExpression functionExpression, CallExpression call)
+        {
+            functionExpression.Visit(this);
+
+            int argscount = call.Parameters.Count;
+
+            if (argscount < 14)
+            {
+                foreach (var item in call.Parameters)
+                {
+                    item.Visit(this);
+                }
+            }
+            else
+            {
+                BuildArray(call.Parameters);
+            }
+
+            int methodid = argscount < 14 ? argscount : 15;
+
+            if (call.Context.SaveValues)
+                ILGen.EmitCall(LambdaCallEmitterHelper.ValuesInvokeMethods[methodid]);
+            else if (call.Context.VoidReturn)
+                ILGen.EmitCall(LambdaCallEmitterHelper.VoidInvokeMethods[methodid]);
+            else
+                ILGen.EmitCall(LambdaCallEmitterHelper.InvokeMethods[methodid]);
+        }
+
+        #endregion
+
+        #region IASTWalker Members
+
+
+        public void ClrTryExpression(ClrTryExpression clrTryExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        #endregion
+    }
+}

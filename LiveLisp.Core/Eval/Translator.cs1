@@ -1,0 +1,918 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using LiveLisp.Core.Runtime;
+using LiveLisp.Core.AST;
+using LiveLisp.Core.Compiler;
+using LiveLisp.Core.AST.Expressions;
+using LiveLisp.Core.Types;
+using System.Collections;
+using System.Runtime.Remoting.Contexts;
+
+namespace LiveLisp.Core.Eval
+{
+    class DefaultRewriter : IASTWalker
+    {
+        #region IASTWalker Members
+
+        public void BlockExpression(LiveLisp.Core.AST.Expressions.BlockExpression blockExpression)
+        {
+            if (blockExpression.Count == 0)
+                return;
+
+            blockExpression.Context.Blocks.Add(blockExpression);
+            Expression item;
+            for (int i = 0; i < blockExpression.Count - 1; i++)
+            {
+                item = blockExpression[i];
+                item.Context.Parent = blockExpression.Context;
+                if (MayCouseBlockExit(blockExpression.BlockName, item))
+                    item.Context.VoidReturn = blockExpression.Context.VoidReturn;
+                else
+                    item.Context.VoidReturn = true;
+                item.Visit(this);
+            }
+
+            item = blockExpression.Last;
+
+            item.Context.VoidReturn = blockExpression.Context.VoidReturn;
+            item.Visit(this);
+        }
+
+        private bool MayCouseBlockExit(Symbol blockName, Expression exp)
+        {
+            if (exp is ConstantExpression)// TODO: replace with TypeCode analog
+            {
+                exp.Context.VoidReturn = true;
+                return false;
+            }
+
+            if (exp is CallExpression)
+            {
+                exp.Context.VoidReturn = true;
+                return false;
+            }
+
+            if (exp is BlockExpression)
+            {
+                if ((exp as BlockExpression).BlockName == blockName)
+                {
+                    exp.Context.VoidReturn = true;
+                    return false;
+                }
+            }
+            else if (exp is ReturnFromExpression)
+            {
+                if ((exp as ReturnFromExpression).Tag == blockName)
+                {
+                    return true;
+                }
+                else
+                {
+                    return MayCouseBlockExit(blockName, ((exp as ReturnFromExpression).Form));
+                }
+            }
+            else if (exp is IfExpression)
+            {
+                var ifexp = exp as IfExpression;
+
+                PatchIf(ifexp);
+
+                bool then = MayCouseBlockExit(blockName, ifexp.Then);
+                if (!then)
+                {
+                    ifexp.Then.Context.VoidReturn = true;
+                }
+                bool else1 = MayCouseBlockExit(blockName, ifexp.Else);
+                if (!else1)
+                {
+                    ifexp.Else.Context.VoidReturn = true;
+                }
+                return then || else1;
+            }
+
+
+            if (exp is IImplicitProgn)
+            {
+                foreach (var item in (exp as IImplicitProgn).Forms)
+                {
+                    if (MayCouseBlockExit(blockName, item))
+                        return true;
+                }
+
+                return false;
+            }
+
+            TagBodyExpression tagbody = exp as TagBodyExpression;
+            if (tagbody != null)
+            {
+                for (int i = 0; i < tagbody.NontaggedProlog.Count; i++)
+                {
+                    if (MayCouseBlockExit(blockName, tagbody.NontaggedProlog[i]))
+                        return true;
+                }
+
+                foreach (var item in tagbody.TaggedStatements)
+                {
+                    for (int i = 0; i < item.Statements.Count; i++)
+                    {
+                        if (MayCouseBlockExit(blockName, item.Statements[i]))
+                            return true;
+                    }
+                }
+
+                return false;
+            }
+            return false;
+            throw new NotSupportedException("MayCouseBlockExit");
+        }
+
+        public void CallExpression(LiveLisp.Core.AST.Expressions.CallExpression callExpression)
+        {
+            callExpression.Function.Visit(this);
+
+            foreach (var item in callExpression.Parameters)
+            {
+                item.Visit(this);
+            }
+        }
+
+        public void CatchExpression(LiveLisp.Core.AST.Expressions.CatchExpression catchExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ClrClassExpression(LiveLisp.Core.AST.Expressions.ClrClassExpression clrClassExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ClrDelegateExpression(LiveLisp.Core.AST.Expressions.ClrDelegateExpression clrDelegateExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ClrEnumExpression(LiveLisp.Core.AST.Expressions.ClrEnumExpression clrEnumExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ClrMethodExpression(LiveLisp.Core.AST.Expressions.ClrMethodExpression clrMethodExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ConstantExpression(LiveLisp.Core.AST.Expressions.ConstantExpression constantExpression)
+        {
+
+        }
+
+        public void EvalWhenExpression(LiveLisp.Core.AST.Expressions.EvalWhenExpression evalWhenExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void FletExpression(LiveLisp.Core.AST.Expressions.FletExpression fletExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void LabelsExpression(LiveLisp.Core.AST.Expressions.LabelsExpression labelsExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void MacroletExpression(LiveLisp.Core.AST.Expressions.MacroletExpression macroletExpression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void FunctionExpression(LiveLisp.Core.AST.Expressions.FunctionExpression functionExpression)
+        {
+            switch (functionExpression.Designator.DesignatorType)
+            {
+                case FunctionNameDesignatorType.Symbol:
+                    functionExpression.Substitution = new VariableExpression(functionExpression.Context.GetFunctionSlot(functionExpression.Designator as SymbolFunctionDesignator), functionExpression.Designator.Context);
+                    break;
+                case FunctionNameDesignatorType.Lambda:
+                    functionExpression.Substitution = GenerateLambdaCreationExpression(functionExpression.Designator as LambdaFunctionDesignator);
+                    break;
+                case FunctionNameDesignatorType.MethodInfo:
+                    throw new SyntaxErrorException();
+                default:
+                    break;
+            }
+        }
+
+        private Expression GenerateLambdaCreationExpression(LambdaFunctionDesignator lambdaFunctionDesignator)
+        {
+            var ll = lambdaFunctionDesignator.LambdaList;
+
+            List<LambdaOverload> overloads = new List<LambdaOverload>();
+
+            for (int i = 0; i < 14; i++)
+            {
+                overloads.Add(CreateOverload(i, ll, lambdaFunctionDesignator));
+            }
+
+            overloads.Add(null); // ValuesInvoke(object[] args)
+
+            return new LambdaOverloads(ll, lambdaFunctionDesignator.Name, overloads, lambdaFunctionDesignator.Context);
+        }
+
+        private LambdaOverload CreateOverload(int i, LambdaList ll, LambdaFunctionDesignator lambdaFunctionDesignator)
+        {
+            if (ll.MinParamsCount > i)
+                return null;
+            if (ll.MaxParamsCount < i)
+                return null;
+            List<Slot> new_slots = new List<Slot>();
+            ExpressionContext new_context = new ExpressionContext(lambdaFunctionDesignator.Context);
+            int j = 0;
+            bool rest_hook = false;
+            //bool params_hook;
+            Slot rest_slot = null;
+
+            List<Expression> new_forms = new List<Expression>(lambdaFunctionDesignator.Forms.Count);
+            List<KeyParameter> keyparams = new List<KeyParameter>();
+            List<AuxParameter> auxparams = new List<AuxParameter>();
+
+            PrognExpression rest_progn = null;
+
+            Slot temp_slot = null;
+            for (; j < ll.Count; j++)
+            {
+
+                var parameter = ll[j];
+                switch (parameter.Kind)
+                {
+                    case ParameterKind.Required:
+
+                        new_context = new ExpressionContext(new_context);
+                        new_context.SetSlot(parameter.Name, new MethodParameterSlot(j + 1));
+                        break;
+                    case ParameterKind.Optional:
+
+                        new_context = new ExpressionContext(new_context);
+                        if (j < i)
+                        {
+                            new_context.SetSlot(parameter.Name, new MethodParameterSlot(j + 1));
+
+                            if ((parameter as OptionalParameter).Suppliedp)
+                            {
+                                temp_slot = new_context.SetSlot((parameter as OptionalParameter).SuppliedpName, new LocalSlot());
+
+                                new_forms.Add(new SetqExpression(temp_slot, new ConstantExpression(DefinedSymbols.T), new_context));
+
+                                new_slots.Add(temp_slot);
+                            }
+                        }
+                        else
+                        {
+                            temp_slot = new_context.SetSlot(parameter.Name, new LocalSlot());
+
+                            new_forms.Add(new SetqExpression(temp_slot, CreateDefault((parameter as OptionalParameter).DefaultValue, new_context), new_context));
+
+                            new_slots.Add(temp_slot);
+
+                            if ((parameter as OptionalParameter).Suppliedp)
+                            {
+                                temp_slot = new_context.SetSlot((parameter as OptionalParameter).SuppliedpName, new LocalSlot());
+
+                                new_forms.Add(new SetqExpression(temp_slot, new ConstantExpression(DefinedSymbols.NIL), new_context));
+
+                                new_slots.Add(temp_slot);
+                            }
+                        }
+                        break;
+                    case ParameterKind.Rest:
+
+                        new_context = new ExpressionContext(new_context);
+                        if (j < i)
+                        {
+                            rest_slot = new MethodParameterSlot(j + 1);
+                            var argTypes = new List<StaticTypeResolver>();
+                            var args = new List<Expression>();
+                            args.Add(new VariableExpression(rest_slot));
+                            var clr_new = new ClrNewExpression(StaticTypeResolver.Create(typeof(Cons)), argTypes, args, new_context);
+                            new_forms.Add(new SetqExpression(rest_slot, clr_new, new_context));
+
+                            rest_progn = new PrognExpression(new_context);
+                            new_forms.Add(rest_progn);
+                            rest_hook = true;
+                            continue;
+                        }
+                        else
+                        {
+                            rest_slot = new LocalSlot();
+                            new_forms.Add(new SetqExpression(rest_slot, new ConstantExpression(DefinedSymbols.NIL), new_context));
+                            new_slots.Add(rest_slot);
+                            continue;
+                        }
+                    case ParameterKind.Key:
+                        keyparams.Add(parameter as KeyParameter);
+                        if (rest_slot == null)
+                        {
+                            new_context = new ExpressionContext(new_context);
+                            if (j < i)
+                            {
+                                rest_slot = new LocalSlot();
+                                var argTypes = new List<StaticTypeResolver>();
+                                var args = new List<Expression>();
+                                args.Add(new VariableExpression(rest_slot));
+                                var clr_new = new ClrNewExpression(StaticTypeResolver.Create(typeof(Cons)), argTypes, args, new_context);
+                                new_forms.Add(new SetqExpression(rest_slot, clr_new, new_context));
+
+                                rest_progn = new PrognExpression(new_context);
+                                new_forms.Add(rest_progn);
+                                new_slots.Add(rest_slot);
+                                rest_hook = true;
+                                continue;
+                            }
+                            else
+                            {
+                                rest_slot = new LocalSlot();
+                                new_forms.Add(new SetqExpression(rest_slot, new ConstantExpression(DefinedSymbols.NIL), new_context));
+                                new_slots.Add(rest_slot);
+                                continue;
+                            }
+                        }
+                        break;
+                    case ParameterKind.Params:
+                        break;
+                    case ParameterKind.Environment:
+                        break;
+                    case ParameterKind.Whole:
+                        break;
+                    case ParameterKind.Aux:
+                        auxparams.Add(parameter as AuxParameter);
+                        break;
+                    default:
+                        break;
+                }
+                if (j < i)
+                {
+                    if (rest_hook)
+                    {
+                        var ctx = new ExpressionContext(new_context);
+                        var args = new List<Expression>(2);
+                        args.Add(new VariableExpression(rest_slot, ctx));
+                        args.Add(new VariableExpression(new MethodParameterSlot(j + 1), ctx));
+                        rest_progn.Forms.Add(new CallExpression(new MethodInfoFunctionDesignator(typeof(Cons).GetMethod("Append"), new_context), args, new_context));
+                    }
+                }
+            }
+            new_context = new ExpressionContext(new_context);
+            for (; j < i; j++)
+            {
+                var args_slot_num = j + 1;
+                if (rest_hook)
+                {
+                    var ctx = new ExpressionContext(new_context);
+                    var args = new List<Expression>(2);
+                    args.Add(new VariableExpression(rest_slot, ctx));
+                    args.Add(new VariableExpression(new MethodParameterSlot(args_slot_num), ctx));
+                    rest_progn.Forms.Add(new CallExpression(new MethodInfoFunctionDesignator(typeof(Cons).GetMethod("Append"), new_context), args, new_context));
+
+                }
+
+                /*if (params_hook)
+                {
+                    ilgenerator.EmitLocalGet(params_slot);
+                    ilgenerator.EmitInt32(j);
+                    ilgenerator.EmitLdarg(args_slot_num);
+                    ilgenerator.EmitStoreElement(typeof(object));
+                }*/
+            }
+
+            Slot keypairs_slot = null;
+            if (keyparams.Count != 0)
+            {
+                // validate
+
+                var ctx = new_context = new ExpressionContext(new_context);
+                ctx.Box = false;
+                var args = new List<Expression>(2);
+                args.Add(new ConstantExpression(lambdaFunctionDesignator.Name));
+                args.Add(new VariableExpression(rest_slot, ctx));
+                args.Add(new ConstantExpression(ll.KeysList));
+                args.Add(new ClrConstantExpression(ll.AllowOtherKeys, ctx));
+                // save return to keys_dict
+                keypairs_slot = new LocalSlot();
+                new_forms.Add(new SetqExpression(keypairs_slot, new CallExpression(new MethodInfoFunctionDesignator(typeof(RuntimeHelpers).GetMethod("ValidateListForKeyParameters"), ctx), args, ctx), new ExpressionContext(ctx)));
+                new_slots.Add(keypairs_slot);
+            }
+
+            foreach (var item in keyparams)
+            {
+                new_context = new ExpressionContext(new_context);
+                Slot supp_slot = null;
+                if (item.Suppliedp)
+                {
+                    supp_slot = new_context.SetSlot(item.SuppliedpName, new LocalSlot());
+                    new_slots.Add(supp_slot);
+                }
+
+                var args_list = new List<Expression>();
+                var ctx = new ExpressionContext(new_context);
+                ctx.Box = false;
+                args_list.Add(new VariableExpression(keypairs_slot));
+                args_list.Add(new ClrConstantExpression(item.Keyword.Id, ctx));
+                var eval_exp = new CallExpression(new MethodInfoFunctionDesignator(typeof(Dictionary<int, object>).GetMethod("ContainsKey"), new_context), args_list, new_context);
+
+
+                List<Expression> progn_body = new List<Expression>();
+
+                if (item.Suppliedp)
+                {
+                    progn_body.Add(new SetqExpression(supp_slot, new ConstantExpression(DefinedSymbols.T), new_context));
+                }
+
+                args_list = new List<Expression>();
+                args_list.Add(new VariableExpression(keypairs_slot));
+                args_list.Add(new ClrConstantExpression(item.Keyword.Id, ctx));
+
+                progn_body.Add(new CallExpression(new MethodInfoFunctionDesignator(typeof(Dictionary<int, object>).GetMethod("get_Item"), new_context), args_list, new_context));
+
+                var then_exp = new PrognExpression(progn_body, new_context);
+
+                progn_body = new List<Expression>();
+                if (item.Suppliedp)
+                {
+                    progn_body.Add(new SetqExpression(supp_slot, new ConstantExpression(DefinedSymbols.T), new_context));
+                }
+                progn_body.Add(CreateDefault(item.DefaultValue, new_context));
+
+                var else_exp = new PrognExpression(progn_body, new_context);
+
+                Slot param_slot = new_context.SetSlot(item.Name, new LocalSlot());
+                new_slots.Add(param_slot);
+                new_forms.Add(new SetqExpression(param_slot,new  ClrIfExpression(eval_exp, then_exp, else_exp, new_context), new ExpressionContext(new_context)));
+
+                /* 
+                Slot var_slot = new LocalSlot();
+                new_context.SetSlot(item.Name, var_slot);
+
+               
+                Slot sup_slot = null;
+                if (item.Suppliedp)
+                {
+                    sup_slot = new LocalSlot();
+                    new_context.SetSlot(item.SuppliedpName, sup_slot);
+                }*/
+                /*
+                 * if(keys_dict.ContainsKey(item.KeywordName))
+                 *  save provided value
+                 * else
+                 *  create default
+                 *  
+                 * и там  про Suppliedp
+                 */
+
+                // create eval expression
+                /*var args_list = new List<Expression>();
+                var ctx = new ExpressionContext(new_context);
+                ctx.Box = false;
+                args_list.Add(new VariableExpression(keypairs_slot));
+                args_list.Add(new ClrConstantExpression(item.Keyword.Id, ctx));
+                var eval_exp = new CallExpression(new MethodInfoFunctionDesignator(typeof(Dictionary<int, object>).GetMethod("ContainsKey"), new_context), args_list, new_context);
+
+                // create then expression
+                args_list = new List<Expression>();
+                args_list.Add(new VariableExpression(keypairs_slot));
+                args_list.Add(new ClrConstantExpression(item.Keyword.Id, ctx));
+                binding = new SyntaxBinding(item.Name, new CallExpression(new MethodInfoFunctionDesignator(typeof(Dictionary<int, object>).GetMethod("get_Item"), new_context), args_list, new_context));
+                binding.Slot = var_slot;
+                var assigns = new List<SyntaxBinding>();
+                assigns.Add(binding);
+                if (item.Suppliedp)
+                {
+                    binding = new SyntaxBinding(item.SuppliedpName, new ConstantExpression(DefinedSymbols.T));
+                    assigns.Add(binding);
+                }
+                var t_setq = new LetExpression(assigns, new List<Declaration>(), new List<Expression>(), new_context);
+                // create else expression
+
+                binding = new SyntaxBinding(item.Name, CreateDefault(item.DefaultValue, new_context));
+                binding.Slot = var_slot;
+                assigns = new List<SyntaxBinding>();
+                assigns.Add(binding);
+                if (item.Suppliedp)
+                {
+                    binding = new SyntaxBinding(item.SuppliedpName, new ConstantExpression(DefinedSymbols.NIL));
+                    assigns.Add(binding);
+                }
+                var e_setq = new LetExpression(assigns, new List<Declaration>(), new List<Expression>(), new_context);
+
+                new_forms.Add(new ClrIfExpression(eval_exp, t_setq, e_setq, new_context));*/
+            }
+
+            foreach (var item in auxparams)
+            {
+                new_context = new ExpressionContext(new_context);
+                temp_slot = new_context.SetSlot(item.Name, new LocalSlot());
+                new_slots.Add(temp_slot);
+                var assign = new SetqExpression(temp_slot, CreateDefault(item.InitForm, new_context), new_context);
+                new_forms.Add(assign);
+            }
+
+            Expression form;
+            Expression copy_form;
+
+            foreach (var item in new_forms)
+            {
+                item.Context.VoidReturn = true;
+                item.Visit(this);
+
+            }
+
+            new_context = new ExpressionContext(new_context);
+
+            for (int k = 0; k < lambdaFunctionDesignator.Forms.Count - 1; k++)
+            {
+                form = lambdaFunctionDesignator.Forms[k];
+                copy_form = form.Copy(new_context);
+                copy_form.Context.VoidReturn = true;
+                copy_form.Visit(this);
+                new_forms.Add(copy_form);
+            }
+
+            new_context = new ExpressionContext(new_context);
+            form = lambdaFunctionDesignator.Forms[lambdaFunctionDesignator.Forms.Count - 1];
+            copy_form = form.Copy(new_context);
+            // copy_form.Context.Parent = new_context;
+            copy_form.Visit(this);
+            new_forms.Add(copy_form);
+            return new LambdaOverload(new_slots, new_forms, new_context);
+
+        }
+
+            private Expression CreateDefault(Object defaultValue, ExpressionContext context)
+            {
+               return LispParser.ParseExpression(defaultValue, context);
+            }
+
+            public void GoExpression(LiveLisp.Core.AST.Expressions.GoExpression goExpression)
+            {
+
+                Expression parent = goExpression;
+                bool barrier = false;
+            Next:
+                parent
+                     = parent.Parent;
+
+                if (parent == null)
+                    throw new SyntaxErrorException("GO: no tag named " + goExpression.Tag + " is currently visible");
+
+                TagBodyExpression tagbody = parent as TagBodyExpression;
+
+                if (tagbody != null && tagbody.TaggedStatements.Contains(goExpression.Tag))
+                {
+                    if (!barrier)
+                    {
+                        GoLocalGenerator newGoLocalGenerator = new GoLocalGenerator();
+                        goExpression.Context.generator = newGoLocalGenerator;
+                        (tagbody.Context.generator as TagBodyGenerator).RegisterLocalGoGenerator(goExpression.Tag, newGoLocalGenerator);
+                    }
+                    else
+                    {
+                        GoNonlocalGenerator newGoNonlocalGenerator = new GoNonlocalGenerator();
+                        goExpression.Context.generator = newGoNonlocalGenerator;
+                        (tagbody.Context.generator as TagBodyGenerator).RegisterNonLocalGoGenerator(goExpression.Tag, newGoNonlocalGenerator);
+                    }
+
+                    return;
+                }
+                else
+                    if (parent is IBarrier)
+                        barrier = true;
+                goto Next;
+
+
+            }
+
+            public void IfExpression(LiveLisp.Core.AST.Expressions.IfExpression ifExpression)
+            {
+                PatchIf(ifExpression);
+
+                if (ifExpression.Context.VoidReturn)
+                {
+                    ifExpression.Else.Context.VoidReturn = true;
+
+                    ifExpression.Then.Context.VoidReturn = true;
+                }
+
+                if (ifExpression.Context.SaveValues)
+                {
+                    ifExpression.Else.Context.SaveValues = true;
+
+                        ifExpression.Then.Context.SaveValues = true;
+                    
+                }
+
+
+                ifExpression.Then.Visit(this);
+                ifExpression.Else.Visit(this);
+            }
+
+            private static void PatchIf(LiveLisp.Core.AST.Expressions.IfExpression ifExpression)
+            {
+                ifExpression.Then.Context.Parent = ifExpression.Context;
+                ifExpression.Else.Context.Parent = ifExpression.Context;
+                // ceorce condition
+                PatchIfCondition(ifExpression);
+            }
+
+            private static void PatchIfCondition(LiveLisp.Core.AST.Expressions.IfExpression ifExpression)
+            {
+                ifExpression.Condition = new CallExpression(new MethodInfoFunctionDesignator(RuntimeHelpers.LispIfMethod, ifExpression.Condition.Context), new List<Expression>(new Expression[] { ifExpression.Condition }), ifExpression.Condition.Context);
+            }
+
+            public void ILCodeExpression(LiveLisp.Core.AST.Expressions.CLR.ILCodeExpression iLCodeExpression)
+            {
+                
+            }
+
+            public void LetExpression(LiveLisp.Core.AST.Expressions.LetExpression letExpression)
+            {
+                var new_context = new ExpressionContext(letExpression.Context.Parent);
+                letExpression.Context.Parent = new_context;
+
+                for (int i = 0; i < letExpression.NewBindings.Count; i++)
+                {
+                    letExpression.NewBindings[i].Value.Context = new_context;
+                    letExpression.NewBindings[i].Value.Visit(this);
+                    if (letExpression.NewBindings[i].Symbol != null)
+                        letExpression.NewBindings[i].Slot = letExpression.Context.SetSlot(letExpression.NewBindings[i].Symbol, new LocalSlot());
+                }
+
+                for (int i = 0; i < letExpression.Forms.Count; i++)
+                {
+                    letExpression.Forms[i].Visit(this);
+                }
+            }
+
+            public void LetStarExpression(LiveLisp.Core.AST.Expressions.LetStarExpression letStarExpression)
+            {
+                var parent = letStarExpression.Context.Parent;
+
+                for (int i = 0; i < letStarExpression.NewBindings.Count; i++)
+                {
+                    var new_context = new ExpressionContext(parent);
+                    letStarExpression.Context.Parent  = new_context;
+                    parent = new_context;
+                    letStarExpression.NewBindings[i].Slot = new_context.SetSlot(letStarExpression.NewBindings[i].Symbol, new LocalSlot());
+                    letStarExpression.NewBindings[i].Value.Context = new_context;
+                    letStarExpression.NewBindings[i].Value.Visit(this);
+                }
+
+                for (int i = 0; i < letStarExpression.Forms.Count; i++)
+                {
+                    letStarExpression.Forms[i].Visit(this);
+                }
+            }
+
+            public void LoadTimeValueExpression(LiveLisp.Core.AST.Expressions.LoadTimeValue loadTimeValue)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void LocallyExpression(LiveLisp.Core.AST.Expressions.LocallyExpression locallyExpression)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void MultipleValueCallExpression(LiveLisp.Core.AST.Expressions.MultipleValueCallExpression multipleValueCallExpression)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void MultipleValueProg1Expression(LiveLisp.Core.AST.Expressions.MultipleValueProg1Expression multipleValueProg1Expression)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void PrognExpression(LiveLisp.Core.AST.Expressions.PrognExpression prognExpression)
+            {
+                NotifyForVoid(prognExpression);
+
+                if (prognExpression.Forms.Count > 0)
+                {
+                    prognExpression.Forms[prognExpression.Forms.Count - 1].Context.VoidReturn = prognExpression.Context.VoidReturn;
+                    prognExpression.Forms[prognExpression.Forms.Count - 1].Visit(this);
+                }
+            }
+
+            private void NotifyForVoid(IImplicitProgn formsContainer)
+            {
+                if (formsContainer.Forms.Count == 1)
+                    return;
+
+                else
+                {
+                    int firsts = formsContainer.Forms.Count - 2;
+
+                    for (int i = 0; i <= firsts; i++)
+                    {
+                        formsContainer.Forms[i].Context.VoidReturn = true;
+                        formsContainer.Forms[i].Visit(this);
+                    }
+                }
+            }
+
+            public void ProgvExpression(LiveLisp.Core.AST.Expressions.ProgvExpression progvExpression)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void ReturnFromExpression(LiveLisp.Core.AST.Expressions.ReturnFromExpression returnFromExpression)
+            {
+                returnFromExpression.Form.Context.VoidReturn = returnFromExpression.Context.VoidReturn;
+                returnFromExpression.Form.Context.SaveValues = returnFromExpression.Context.SaveValues;
+                // тут мы должны точно сказать из какого блока выходим
+                returnFromExpression.Context.FindBlock(returnFromExpression.Tag);
+            }
+
+            public void SetqExpression(LiveLisp.Core.AST.Expressions.SetqExpression setqExpression)
+            {
+                if (setqExpression.Assings.Count == 0)
+                    return;
+
+                var context = setqExpression.Context;
+
+                foreach (var item in setqExpression.Assings)
+                {
+                    if (item.Slot == null)
+                    {
+                        item.Slot = context.GetSlot(item.Symbol);
+                    }
+                }
+            }
+
+            public void SymbolMacroletExpression(LiveLisp.Core.AST.Expressions.SymbolMacroletExpression symbolMacroletExpression)
+            {
+                throw new NotImplementedException();
+            }
+
+            /// <summary>
+            /// Если все формы (go #tag#) не находятся внутри барьеров то генерируем по-старинке - просто Br на метку
+            /// Если нохдится барьер, то нужно использовать не локальный переход
+            /// </summary>
+            /// <param name="tagBodyExpression"></param>
+            public void TagbodyExpression(LiveLisp.Core.AST.Expressions.TagBodyExpression tagBodyExpression)
+            {
+                tagBodyExpression.Context.generator = new TagBodyGenerator(tagBodyExpression);
+
+                for (int i = 0; i < tagBodyExpression.NontaggedProlog.Count; i++)
+                {
+                    tagBodyExpression.NontaggedProlog[i].Context.VoidReturn = true;
+                    tagBodyExpression.NontaggedProlog[i].Visit(this);
+                }
+
+                for (int i = 0; i < tagBodyExpression.TaggedStatements.Count; i++)
+                {
+                    for (int j = 0; j < tagBodyExpression.TaggedStatements.ElementAt(i).Statements.Count; j++)
+                    {
+                        Expression taggedExp = tagBodyExpression.TaggedStatements.ElementAt(i).Statements[j];
+                        taggedExp.Context.VoidReturn = true;
+                        taggedExp.Visit(this);
+                    }
+                }
+            }
+
+            public void TheExpression(LiveLisp.Core.AST.Expressions.TheExpression theExpression)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void ThrowExpression(LiveLisp.Core.AST.Expressions.ThrowExpression throwExpression)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void UnwindProtectExpression(LiveLisp.Core.AST.Expressions.UnwindProtectExpression unwindProtectExpression)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void VariableExpression(LiveLisp.Core.AST.Expressions.VariableExpression variableExpression)
+            {
+               /* if(variableExpression.Slot == null)
+                variableExpression.Slot = variableExpression.Context.GetSlot(variableExpression.VariableName);*/
+            }
+
+            public void SymbolFunctionDesignator(SymbolFunctionDesignator symbolFunctionDesignator)
+            {
+
+            }
+
+            public void MethodInfoFunctionDesignator(MethodInfoFunctionDesignator methodInfoFunctionDesignator)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void EmitMethodInfoDesignatorCall(MethodInfoFunctionDesignator methodInfoFunctionDesignator, CallExpression call)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void EmitMethodInfoDesignatorCall(SymbolFunctionDesignator symbolFunctionDesignator, CallExpression call)
+            {
+                throw new NotImplementedException();
+            }
+
+            #endregion
+
+            #region IASTWalker Members
+
+
+            public void ClrNewExpression(ClrNewExpression clrNewExpression)
+            {
+                throw new NotImplementedException();
+            }
+
+            #endregion
+
+            #region IASTWalker Members
+
+
+            public void LambdaOverloadsExpression(LambdaOverloads lambdaOverloads)
+            {
+                throw new NotImplementedException();
+            }
+
+            #endregion
+
+            #region IASTWalker Members
+
+
+            public void LambdaOverload(LambdaOverload lambdaOverload)
+            {
+                throw new NotImplementedException();
+            }
+
+            #endregion
+
+            #region IASTWalker Members
+
+
+            public void ClrIfExpression(LiveLisp.Core.AST.Expressions.ClrIfExpression clrIfExpression)
+            {
+                if (clrIfExpression.Context.VoidReturn)
+                {
+                    clrIfExpression.Else.Context.VoidReturn = true;
+
+                    clrIfExpression.Then.Context.VoidReturn = true;
+                }
+
+                if (clrIfExpression.Context.SaveValues)
+                {
+                    clrIfExpression.Else.Context.SaveValues = true;
+
+                    clrIfExpression.Then.Context.SaveValues = true;
+
+                }
+
+
+                clrIfExpression.Then.Visit(this);
+                clrIfExpression.Else.Visit(this);
+            }
+
+            #endregion
+
+            #region IASTWalker Members
+
+
+            public void ClrConstantExpression(ClrConstantExpression clrConstantExpression)
+            {
+            }
+
+            #endregion
+
+            #region IASTWalker Members
+
+
+            public void EmitFunctionDesignatorCall(FunctionExpression functionExpression)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void EmitFunctionDesignatorCall(FunctionExpression functionExpression, CallExpression call)
+            {
+                throw new NotImplementedException();
+            }
+
+            #endregion
+
+            #region IASTWalker Members
+
+
+            public void ClrTryExpression(ClrTryExpression clrTryExpression)
+            {
+                throw new NotImplementedException();
+            }
+
+            #endregion
+    }
+    }

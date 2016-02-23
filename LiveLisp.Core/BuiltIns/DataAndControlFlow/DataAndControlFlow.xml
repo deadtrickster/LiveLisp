@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml-stylesheet type='text/xsl' href='../DictionaryStyle.xslt' version='1.0'?>
+<Dictionary xmlns="http://livelisp.com/DictionaryImplementationState.xsd" Name="Data and Controlflow" AllImplemented="false">
+  <SpecialOperators>
+    <SpecialOperator Name="FLET" Implemented="false">
+      Не реализованна поддержка (setf symbol) имён
+    </SpecialOperator>
+    <SpecialOperator Name ="LABLES" Implemented="false">
+      Не реализваона поддержка (setf symbol) имён
+    </SpecialOperator>
+    <SpecialOperator Name="MACROLET" Implemented="false">
+    </SpecialOperator>
+    <SpecialOperator Name ="FUNCTION" Implemented="false">
+      Не реализваона поддержка (setf symbol) имён
+    </SpecialOperator>
+    <SpecialOperator Name ="LET" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="LET*" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="SETQT" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="BLOCK" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="CATCH" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="GO" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="RETURN-FROM" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="TAGBODY" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="THROW" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="UNWIND-PROTECT" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="MULTIPLE-VALUE-CALL" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="MULTIPLE-VALUE-PROG1" Implemented="true">
+    </SpecialOperator>
+    <SpecialOperator Name ="PROGN" Implemented="true">
+    </SpecialOperator>
+  </SpecialOperators>
+  <Functions>
+    <Function Name="Apply" Implemented="true">
+      
+    </Function>
+    <Function Name="Fdefinition" Implemented="true">
+      
+    </Function>
+    <Function Name ="Fmakeunbound" Implemented="true">
+      
+    </Function>
+    <Function Name="Funcall" Implemented="true">
+      
+    </Function>
+    <Function Name="FUNCTION-LAMBDA-EXPRESSION" Implemented ="true"></Function>
+    <Function Name="FUNCTIONP" Implemented="true"></Function>
+  </Functions>
+</Dictionary>

@@ -1,0 +1,87 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveLisp.Console", "LiveLisp\LiveLisp.Console.csproj", "{829BBA8D-5C83-498F-A147-BD4987177764}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveLisp.Core", "LiveLisp.Core\LiveLisp.Core.csproj", "{724621DC-012E-4B44-BABB-EF876478AAD6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveLisp.Core.Tests", "LiveLisp.Core.Tests\LiveLisp.Core.Tests.csproj", "{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}"
+EndProject
+Global
+	GlobalSection(TestCaseManagementSettings) = postSolution
+		CategoryFile = LiveLisp1.vsmdi
+	EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|Mixed Platforms = Debug|Mixed Platforms
+		Debug|Win32 = Debug|Win32
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|Mixed Platforms = Release|Mixed Platforms
+		Release|Win32 = Release|Win32
+		Release|x86 = Release|x86
+		SilverLight|Any CPU = SilverLight|Any CPU
+		SilverLight|Mixed Platforms = SilverLight|Mixed Platforms
+		SilverLight|Win32 = SilverLight|Win32
+		SilverLight|x86 = SilverLight|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Debug|Win32.ActiveCfg = Debug|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Release|Any CPU.Build.0 = Release|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Release|Win32.ActiveCfg = Release|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.Release|x86.ActiveCfg = Release|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.SilverLight|Any CPU.ActiveCfg = SilverLight|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.SilverLight|Any CPU.Build.0 = SilverLight|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.SilverLight|Mixed Platforms.ActiveCfg = SilverLight|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.SilverLight|Mixed Platforms.Build.0 = SilverLight|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.SilverLight|Win32.ActiveCfg = SilverLight|Any CPU
+		{829BBA8D-5C83-498F-A147-BD4987177764}.SilverLight|x86.ActiveCfg = SilverLight|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Debug|Win32.ActiveCfg = Debug|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Release|Win32.ActiveCfg = Release|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.Release|x86.ActiveCfg = Release|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.SilverLight|Any CPU.ActiveCfg = Silverlight Release|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.SilverLight|Any CPU.Build.0 = Silverlight Release|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.SilverLight|Mixed Platforms.ActiveCfg = Silverlight Release|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.SilverLight|Mixed Platforms.Build.0 = Silverlight Release|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.SilverLight|Win32.ActiveCfg = Silverlight Release|Any CPU
+		{724621DC-012E-4B44-BABB-EF876478AAD6}.SilverLight|x86.ActiveCfg = Silverlight Release|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Debug|Win32.ActiveCfg = Debug|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Release|Win32.ActiveCfg = Release|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.Release|x86.ActiveCfg = Release|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.SilverLight|Any CPU.ActiveCfg = SilverLight|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.SilverLight|Any CPU.Build.0 = SilverLight|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.SilverLight|Mixed Platforms.ActiveCfg = SilverLight|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.SilverLight|Mixed Platforms.Build.0 = SilverLight|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.SilverLight|Win32.ActiveCfg = SilverLight|Any CPU
+		{9DC0BF55-133C-446D-B1B4-898E0F2A7C2B}.SilverLight|x86.ActiveCfg = SilverLight|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

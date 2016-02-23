@@ -1,0 +1,773 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Reflection;
+using LiveLisp.Core.Utilites;
+using LiveLisp.Core.Types;
+using System.Reflection.Emit;
+using LiveLisp.Core.Runtime;
+using LiveLisp.Core.AST;
+using LiveLisp.Core.AST.Expressions;
+
+namespace LiveLisp.Core.Compiler
+{
+    class MethodLambdaListPair
+    {
+        public MemberInfo method;
+        public LambdaList lambdaList;
+
+        public MethodLambdaListPair(MemberInfo method, LambdaList lambdaList)
+        {
+            this.method = method;
+            this.lambdaList = lambdaList;
+        }
+    }
+
+    public static class CLRMethodImporter
+    {
+        public static void ImportAll(Type t)
+        {
+          //  ImportAll(t, t.Name, BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public, "*");
+        }
+
+        public static void ImportAll(Type t, BindingFlags flags)
+        {
+           // ImportAll(t, t.Name, flags, "*");
+        }
+
+        public static void ImportAll(Type t, BindingFlags flags, string name_pattern_with_wildcards)
+        {
+            List<MethodInfo> applyedMethods = new List<MethodInfo>();
+
+            MethodInfo[] methods = t.GetMethods(flags);
+            for (int i = 0; i < methods.Length; i++)
+            {
+                var mi = methods[i];
+                if (Wildcard.IsMatch(name_pattern_with_wildcards, mi.Name, true))
+                {
+                    applyedMethods.Add(mi);
+                }
+            }
+
+            // ключ это число параметров
+            Dictionary<string,  Dictionary<int, List<MethodLambdaListPair>>> groups = new Dictionary<string, Dictionary<int, List<MethodLambdaListPair>>>();
+
+            foreach (var method in applyedMethods)
+            {
+                OrdinaryLambdaList ll = OrdinaryLambdaList.CreateFromMethod(method);
+                for (int i = ll.MinParamsCount; i < (ll.ParamsKind == ParamsKind.None ? ll.MaxParamsCount : ll.ParamsIndex); i++)
+                {
+                    Dictionary<int, List<MethodLambdaListPair>> overload;
+
+                    if (groups.ContainsKey(method.Name))
+                        overload = groups[method.Name];
+                    else
+                    {
+                        overload = new Dictionary<int, List<MethodLambdaListPair>>();
+                        groups.Add(method.Name, overload);
+                    }
+
+                    List<MethodLambdaListPair> bin;
+                    if (overload.ContainsKey(i))
+                        bin = overload[i];
+                    else
+                    {
+                        bin = new List<MethodLambdaListPair>();
+                        overload.Add(i, bin);
+                    }
+
+                    bin.Add(new MethodLambdaListPair(method, ll));
+                }
+            }
+
+            if (groups.Count != 0)
+            {
+                string name = t.Name;
+                // создать пакет.
+                int lastdotindex = name.LastIndexOf('.');
+                string package_name;
+                string symbols_prefix = "";
+                if (lastdotindex == -1)
+                {
+                    package_name = name;
+                }
+                else
+                {
+                    package_name = name.Substring(0, lastdotindex);
+                    symbols_prefix = name.Substring(lastdotindex + 1, name.Length - lastdotindex);
+                }
+
+                if(symbols_prefix != "")
+                    symbols_prefix = symbols_prefix + "->";
+
+                Package package = PackagesCollection.GetOrCreatePackage(package_name);
+
+                foreach (var named_overloads in groups)
+                {
+                    Symbol func_name = package.Intern(symbols_prefix + named_overloads.Key, true);
+
+                    ImportOverloads(func_name, named_overloads.Value);
+                }
+            }
+        }
+
+
+        private static void ImportOverloads(Symbol func_name, Dictionary<int, List<MethodLambdaListPair>> value)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static void ImportInsanceMember(Type t, string member_name, string package, string symbol_name)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static LambdaMethod ImportMethod(Symbol symbol, MethodInfo method, ValuesReturnPolitics politics)
+        {
+            switch (politics)
+            {
+                case ValuesReturnPolitics.Never:
+                    return NewSingleLambda(symbol, method);
+                case ValuesReturnPolitics.Sometimes:
+                    return NewSometimesLambda(symbol, method);
+                case ValuesReturnPolitics.Always:
+                    return NewAlwaysLambda(symbol, method);
+                case ValuesReturnPolitics.AlwaysNonZero:
+                    return NewAlwaysNonZeroLambda(symbol, method);
+                case ValuesReturnPolitics.Void:
+                    return NewVoidLambda(symbol, method);
+                default:
+                    throw new InvalidOperationException("Unknown lambda import polotics " + politics);
+            }
+
+            /*TypeBuilder type = module.DefineType(GetUniqueName(symbol), TypeAttributes.Public, typeof(LambdaMethod));
+            LambdaList ll = OrdinaryLambdaList.CreateFromMethod(method);
+
+            var constructor = type.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard,new Type[]{typeof(Symbol)}); 
+
+            var ctorgenerator = constructor.GetILGenerator();
+            ctorgenerator.EmitLdarg(0);
+            ctorgenerator.EmitLdarg(1);
+            ctorgenerator.Emit(OpCodes.Call, typeof(LambdaMethod).GetConstructor(new Type[] { typeof(Symbol) }));
+            
+
+            int maxparams = ll.MaxParamsCount < 14 ? ll.MaxParamsCount : 13;
+
+            ctorgenerator.EmitLdarg(0);
+            ctorgenerator.EmitInt32(ll.MinParamsCount);
+            ctorgenerator.EmitFieldSet(typeof(LambdaMethod), "MinArgsCount");
+            ctorgenerator.EmitLdarg(0);
+            ctorgenerator.EmitInt32(ll.MaxParamsCount);
+            ctorgenerator.EmitFieldSet(typeof(LambdaMethod), "MaxArgsCount");
+            ctorgenerator.EmitRet();
+
+            var attrs = MethodAttributes.Public | MethodAttributes.HideBySig |
+                                MethodAttributes.Virtual |
+                                MethodAttributes.Final;
+            ILGenerator ilgenerator;
+            ILGenerator voidilgenerator;
+
+            bool rest_hook = false;
+            LocalBuilder rest_slot = null;
+            LocalBuilder void_rest_slot = null;
+            for (int i = ll.MinParamsCount; i <= maxparams; i++)
+            {
+                rest_hook = false;
+                var newmethod = type.DefineMethod("ValuesInvoke", attrs, typeof(MultipleValues), LambdaCallEmitterHelper.argsLists[i]);
+
+                var newvoidmethod = type.DefineMethod("VoidInvoke", attrs, typeof(void), LambdaCallEmitterHelper.argsLists[i]);
+
+                ilgenerator = newmethod.GetILGenerator();
+                voidilgenerator = newvoidmethod.GetILGenerator();
+                int j = 0;
+                for (; j < ll.Count; j++)
+                {
+                    int method_arg = j + 1; // becouse of this
+                    var parameter = ll[j];
+
+                    if (parameter.Kind == ParameterKind.Required)
+                    {
+                        ilgenerator.EmitLdarg(method_arg);
+                        voidilgenerator.EmitLdarg(method_arg);
+                    }
+                    else if (parameter.Kind == ParameterKind.Optional)
+                    {
+                        if (j < i)
+                        {
+                            ilgenerator.EmitLdarg(method_arg);
+                            voidilgenerator.EmitLdarg(method_arg);
+                        }
+                        else
+                        {
+                            object defvalue = (parameter as OptionalParameter).DefaultValue;
+                            if (defvalue.ToString() == "$nil$")
+                            {
+                                defvalue = DefinedSymbols.NIL;
+                            }
+
+                            ilgenerator.EmitConstant(defvalue);
+                            voidilgenerator.EmitConstant(defvalue);
+                        }
+                    }
+                    else if (parameter.Kind == ParameterKind.Rest)
+                    {
+                        if (j < i)
+                        {
+                            rest_hook = true;
+
+                            rest_slot = ilgenerator.DeclareLocal(typeof(Cons));
+                            ilgenerator.EmitLdarg(method_arg);
+                            ilgenerator.EmitNew(typeof(Cons), new Type[] { typeof(object) });
+                            ilgenerator.EmitLocalSet(rest_slot);
+
+                            void_rest_slot = voidilgenerator.DeclareLocal(typeof(Cons));
+                            voidilgenerator.EmitLdarg(method_arg);
+                            voidilgenerator.EmitNew(typeof(Cons), new Type[] { typeof(object) });
+                            voidilgenerator.EmitLocalSet(void_rest_slot);
+                            continue;
+                        }
+                        else
+                        {
+                            ilgenerator.EmitNIL();
+                            ilgenerator.EmitNew(typeof(Cons), new Type[] { typeof(object) });
+                            voidilgenerator.EmitNIL();
+                            voidilgenerator.EmitNew(typeof(Cons), new Type[] { typeof(object) });
+
+                        }
+                    }
+                    else
+                    {
+                        throw new NotImplementedException();
+                    }
+
+                    if (rest_hook)
+                    {
+                        ilgenerator.EmitLocalGet(rest_slot);
+                        ilgenerator.EmitLdarg(method_arg);
+                        ilgenerator.EmitCall(typeof(Cons), "Append");
+
+                        voidilgenerator.EmitLocalGet(rest_slot);
+                        voidilgenerator.EmitLdarg(method_arg);
+                        voidilgenerator.EmitCall(typeof(Cons), "Append");
+                    }
+                }
+
+                if (ll.ParamsKind != ParamsKind.None)
+                {
+                    for (; j < i; j++)
+                    {
+                        if (rest_hook)
+                        {
+                            ilgenerator.EmitLocalGet(rest_slot);
+                            ilgenerator.EmitLdarg(j+1);
+                            ilgenerator.EmitCall(typeof(Cons), "Append");
+
+                            voidilgenerator.EmitLocalGet(rest_slot);
+                            voidilgenerator.EmitLdarg(j + 1);
+                            voidilgenerator.EmitCall(typeof(Cons), "Append");
+                        }
+                    }
+
+                    if (rest_hook)
+                    {
+                        ilgenerator.EmitLocalGet(rest_slot);
+
+                        voidilgenerator.EmitLocalGet(rest_slot);
+                    }
+                }
+
+                ilgenerator.EmitCall(method);
+                voidilgenerator.EmitCall(method);
+
+                if (method.ReturnType == typeof(void))
+                {
+                    ilgenerator.EmitConstant(DefinedSymbols.NIL);
+                }
+                else
+                {
+                    voidilgenerator.EmitPop();
+                }
+                var result_local = ilgenerator.DeclareLocal(typeof(object));
+                ilgenerator.EmitLocalSet(result_local);
+
+                Label isvalues_label = ilgenerator.DefineLabel();
+                var values_local = ilgenerator.DeclareLocal(typeof(MultipleValues));
+                ilgenerator.EmitLocalGet(result_local);
+                ilgenerator.Emit(OpCodes.Isinst,typeof(MultipleValues));
+                ilgenerator.EmitLocalSet(values_local);
+                ilgenerator.EmitLocalGet(values_local);
+                ilgenerator.Emit(OpCodes.Brtrue, isvalues_label);
+                ilgenerator.EmitLocalGet(result_local);
+                ilgenerator.EmitCall(typeof(MultipleValues).GetMethod("Values", BindingFlags.Static | BindingFlags.Public, null, new Type[] { typeof(object) }, null));
+                ilgenerator.EmitLocalSet(values_local);
+                ilgenerator.MarkLabel(isvalues_label);
+                ilgenerator.EmitLocalGet(values_local);
+                ilgenerator.EmitRet();
+                voidilgenerator.EmitRet();
+            }
+
+            var newarrmethod = type.DefineMethod("ValuesInvoke", attrs, typeof(MultipleValues), LambdaCallEmitterHelper.argsLists[15]);
+       //     var newvoidarrmethod = type.DefineMethod("ValuesInvoke", attrs, typeof(void), argsLists[15]);
+
+            
+
+            ilgenerator = newarrmethod.GetILGenerator();
+       //     voidilgenerator = newvoidarrmethod.GetILGenerator();
+
+            if (ll.ParamsKind == ParamsKind.Rest)
+            {
+                rest_slot = ilgenerator.DeclareLocal(typeof(Cons));
+                ilgenerator.EmitNIL();
+                ilgenerator.EmitNew(typeof(Cons), new Type[] { typeof(object) });
+                ilgenerator.EmitLocalSet(rest_slot);
+            }
+
+            ilgenerator.EmitLdarg(0);
+
+            ilgenerator.EmitLdarg(1);
+       //     voidilgenerator.EmitLdarg(1);
+
+            ilgenerator.Emit(OpCodes.Ldlen);
+       //     voidilgenerator.EmitPropertyGet(typeof(Array), "Length");
+
+            ilgenerator.EmitCall(checkArgsMethod);
+       //     voidilgenerator.EmitCall(checkArgsMethod);
+
+           /* var local = ilgenerator.DeclareLocal(typeof(int));
+       //     var voidlocal = ilgenerator.DeclareLocal(typeof(int));
+
+            ilgenerator.EmitInt32(0);
+      //      voidilgenerator.EmitInt32(0);
+
+            ilgenerator.EmitLocalSet(local);
+      //      voidilgenerator.EmitLocalSet(voidlocal);
+
+            var for_body_label = ilgenerator.DefineLabel();
+            var for_eq_label = ilgenerator.DefineLabel();
+
+            ilgenerator.JmpToLabel(for_eq_label);
+
+            ilgenerator.MarkLabel(for_body_label);
+
+            ilgenerator.EmitLdarg(1);
+            ilgenerator.EmitLocalGet(local);
+            ilgenerator.Emit(OpCodes.Ldelem_Ref);
+
+            ilgenerator.EmitLocalGet(local);
+            ilgenerator.EmitInt32(1);
+            ilgenerator.Emit(OpCodes.Add);
+            ilgenerator.EmitLocalSet(local);
+
+            ilgenerator.MarkLabel(for_eq_label);
+
+            ilgenerator.EmitLocalGet(local);
+            ilgenerator.EmitLdarg(1);
+            ilgenerator.Emit(OpCodes.Ldlen);
+            ilgenerator.Emit(OpCodes.Conv_I4);
+            ilgenerator.Emit(OpCodes.Blt_S, for_body_label);*/
+          /*  int r = 0;
+            for (; r < ll.MinParamsCount; r++)
+            {
+                ilgenerator.EmitLdarg(1);
+                ilgenerator.EmitInt32(r);
+                ilgenerator.Emit(OpCodes.Ldelem_Ref);
+            }
+            
+
+            for (; r < maxparams; r++)
+            {
+                var _label = ilgenerator.DefineLabel();
+                var _endlabel = ilgenerator.DefineLabel();
+                ilgenerator.EmitInt32(r);
+                ilgenerator.EmitLdarg(1);
+                ilgenerator.Emit(OpCodes.Ldlen);
+                ilgenerator.Emit(OpCodes.Conv_I4);
+                ilgenerator.Emit(OpCodes.Bge, _label);
+                if (r >= ll.ParamsIndex)
+                {
+                    if (ll.ParamsKind == ParamsKind.Rest)
+                    {
+                        ilgenerator.EmitLocalGet(rest_slot);
+
+                        ilgenerator.EmitLdarg(1);
+                        ilgenerator.EmitInt32(r);
+                        ilgenerator.Emit(OpCodes.Ldelem_Ref);
+
+                        ilgenerator.EmitCall(typeof(Cons), "Append");
+                    }
+                }
+                else
+                {
+                    ilgenerator.EmitLdarg(1);
+                    ilgenerator.EmitInt32(r);
+                    ilgenerator.Emit(OpCodes.Ldelem_Ref);
+                }
+                ilgenerator.JmpToLabel(_endlabel);
+                ilgenerator.MarkLabel(_label);
+                if (r < ll.Count)
+                {
+                    var parameter = ll[r];
+                    if (parameter.Kind == ParameterKind.Optional)
+                    {
+                        Expression defaultValue = CreateDefault((parameter as OptionalParameter).DefaultValue);
+
+                        DefaultASTCompiler.JustWalk(defaultValue, ilgenerator);
+                    }
+                    else if (parameter.Kind == ParameterKind.Rest)
+                    {
+
+                    }
+                    else
+                        throw new NotImplementedException();
+                }
+                ilgenerator.MarkLabel(_endlabel);
+            }
+
+            if (ll.ParamsKind == ParamsKind.Rest)
+            {
+                ilgenerator.EmitLocalGet(rest_slot);
+            }
+            ilgenerator.EmitCall(method);
+
+            if (method.ReturnType == typeof(void))
+            {
+                ilgenerator.EmitConstant(DefinedSymbols.NIL);
+            }
+
+            ilgenerator.EmitRet();
+
+           var createdType = type.CreateType();
+
+           return Activator.CreateInstance(createdType, symbol) as LambdaMethod;*/
+        }
+
+        private static LambdaMethod NewSingleLambda(Symbol symbol, MethodInfo method)
+        {
+            TypeBuilder type;
+            LambdaList ll = OrdinaryLambdaList.CreateFromMethod(method);
+            int maxparams = ll.MaxParamsCount < 14 ? ll.MaxParamsCount : 13;
+            EmitConstructor(symbol, out type, ll, maxparams, SingleLambdaType);
+
+            for (int i = ll.MinParamsCount; i <= maxparams; i++)
+            {
+                var newmethod = type.DefineMethod("Invoke", attrs, typeof(object), LambdaCallEmitterHelper.argsLists[i]);
+                EmitCall(method, ll, i, newmethod).EmitRet();
+            }
+
+            return CreateLambda(symbol, type);
+        }
+
+        private static LambdaMethod NewSometimesLambda(Symbol symbol, MethodInfo method)
+        {
+            TypeBuilder type;
+            LambdaList ll = OrdinaryLambdaList.CreateFromMethod(method);
+            int maxparams = ll.MaxParamsCount < 14 ? ll.MaxParamsCount : 13;
+            EmitConstructor(symbol, out type,  ll, maxparams, NonZeroValuesLambdaType);
+
+            for (int i = ll.MinParamsCount; i <= maxparams; i++)
+            {
+                var newmethod = type.DefineMethod("ValuesInvoke", attrs, typeof(MultipleValues), LambdaCallEmitterHelper.argsLists[i]);
+                var generator = EmitCall(method, ll, i, newmethod);
+
+
+                var temp = generator.DeclareLocal();
+                var vallocal = generator.DeclareLocal(typeof(MultipleValues));
+
+                Label nulllabel = generator.DefineLabel();
+                Label endlabel = generator.DefineLabel();
+
+                generator.EmitLocalSet(temp);
+                generator.EmitLocalGet(temp);
+                generator.Emit(OpCodes.Isinst, typeof(MultipleValues));
+                generator.EmitLocalSet(vallocal);
+                generator.EmitLocalGet(vallocal);
+                generator.Emit(OpCodes.Brfalse, nulllabel); // null
+                generator.EmitLocalGet(vallocal);
+                generator.Emit(OpCodes.Br, endlabel);
+                generator.MarkLabel(nulllabel);
+                generator.EmitLocalGet(temp);
+                generator.EmitCall(MultipleValues.Values1);
+                generator.MarkLabel(endlabel);
+                generator.EmitRet();
+            }
+
+            EmitParamsMethod(method, type.DefineMethod("ValuesInvoke", attrs, typeof(MultipleValues), LambdaCallEmitterHelper.argsLists[15]), ll);
+
+            return CreateLambda(symbol, type);
+        }
+
+        private static LambdaMethod NewAlwaysLambda(Symbol symbol, MethodInfo method)
+        {
+            TypeBuilder type;
+
+            LambdaList ll = OrdinaryLambdaList.CreateFromMethod(method);
+            int maxparams = ll.MaxParamsCount < 14 ? ll.MaxParamsCount : 13;
+            EmitConstructor(symbol,out type, ll, maxparams, ValuesLambdaType);
+
+            for (int i = ll.MinParamsCount; i <= maxparams; i++)
+            {
+                var newmethod = type.DefineMethod("ValuesInvoke", attrs, typeof(MultipleValues), LambdaCallEmitterHelper.argsLists[i]);
+                EmitCall(method, ll, i, newmethod).EmitRet();
+            }
+
+            EmitParamsMethod(method, type.DefineMethod("ValuesInvoke", attrs, typeof(MultipleValues), LambdaCallEmitterHelper.argsLists[15]), ll);
+
+            return CreateLambda(symbol, type);
+        }
+
+        private static LambdaMethod NewAlwaysNonZeroLambda(Symbol symbol, MethodInfo method)
+        {
+            TypeBuilder type;
+
+            LambdaList ll = OrdinaryLambdaList.CreateFromMethod(method);
+            int maxparams = ll.MaxParamsCount < 14 ? ll.MaxParamsCount : 13;
+            EmitConstructor(symbol, out type,  ll, maxparams, NonZeroValuesLambdaType);
+
+            for (int i = ll.MinParamsCount; i <= maxparams; i++)
+            {
+                var newmethod = type.DefineMethod("ValuesInvoke", attrs, typeof(MultipleValues), LambdaCallEmitterHelper.argsLists[i]);
+                EmitCall(method, ll, i, newmethod).EmitRet();
+            }
+
+            EmitParamsMethod(method, type.DefineMethod("ValuesInvoke", attrs, typeof(MultipleValues), LambdaCallEmitterHelper.argsLists[15]), ll);
+
+            return CreateLambda(symbol, type);
+        }
+
+        private static LambdaMethod NewVoidLambda(Symbol symbol, MethodInfo method)
+        {
+            TypeBuilder type;
+
+            LambdaList ll = OrdinaryLambdaList.CreateFromMethod(method);
+            int maxparams = ll.MaxParamsCount < 14 ? ll.MaxParamsCount : 13;
+            EmitConstructor(symbol, out type, ll, maxparams, VoidLambdaType);
+
+            for (int i = ll.MinParamsCount; i <= maxparams; i++)
+            {
+                
+                var newmethod = type.DefineMethod("VoidInvoke", attrs, typeof(void), LambdaCallEmitterHelper.argsLists[i]);
+                EmitCall(method, ll, i, newmethod).EmitRet();
+            }
+
+            return CreateLambda(symbol, type);
+        }
+
+        internal static void EmitConstructor(Symbol symbol,  out TypeBuilder type, LambdaList ll, int maxparams, Type baseType)
+        {
+            type = CompilerImpl.module.DefineType(GetUniqueName(symbol), TypeAttributes.Public, baseType);
+            
+
+            var constructor = type.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new Type[] { typeof(string) });
+
+            var ctorgenerator = constructor.GetILGenerator();
+            ctorgenerator.EmitLdarg(0);
+            ctorgenerator.EmitLdarg(1);
+            ctorgenerator.Emit(OpCodes.Call, baseType.GetConstructor(new Type[] { typeof(string) }));
+
+
+            maxparams = ll.MaxParamsCount < 14 ? ll.MaxParamsCount : 13;
+
+            ctorgenerator.EmitLdarg(0);
+            ctorgenerator.EmitInt32(ll.MinParamsCount);
+            ctorgenerator.EmitFieldSet(MinArgsField);
+            ctorgenerator.EmitLdarg(0);
+            ctorgenerator.EmitInt32(ll.MaxParamsCount);
+            ctorgenerator.EmitFieldSet(MaxArgsField);
+            ctorgenerator.EmitRet();
+        }
+
+        private static ILGenerator EmitCall(MethodInfo method, LambdaList ll, int i, MethodBuilder newmethod)
+        {
+            ILGenerator ilgenerator;
+            ilgenerator = newmethod.GetILGenerator();
+            bool rest_hook = false;
+            bool params_hook = false;
+            LocalBuilder rest_slot = null;
+            LocalBuilder params_slot = null;
+            int j = 0;
+            for (; j < ll.Count; j++)
+            {
+                var args_slot_num = j + 1; //because of this
+                var parameter = ll[j];
+
+                switch (parameter.Kind)
+                {
+                    case ParameterKind.Required:
+                        ilgenerator.EmitLdarg(args_slot_num);
+                        break;
+                    case ParameterKind.Optional:
+                        if (j < i)
+                        {
+                            ilgenerator.EmitLdarg(args_slot_num);
+                            if ((parameter as OptionalParameter).Suppliedp)
+                            {
+                                ilgenerator.EmitT();
+                            }
+                        }
+                        else
+                        {
+                            DefaultASTCompiler.JustWalk(CreateDefault((parameter as OptionalParameter).DefaultValue), ilgenerator);
+                            if ((parameter as OptionalParameter).Suppliedp)
+                            {
+                                ilgenerator.EmitNIL();
+                            }
+                        }
+                        break;
+                    case ParameterKind.Rest:
+                        if (j < i)
+                        {
+                            rest_hook = true;
+
+                            rest_slot = ilgenerator.DeclareLocal(typeof(Cons));
+                            ilgenerator.EmitLdarg(args_slot_num);
+                            ilgenerator.EmitNew(typeof(Cons), new Type[] { typeof(object) });
+                            ilgenerator.EmitLocalSet(rest_slot);
+                            ilgenerator.EmitLocalGet(rest_slot);
+                            continue;
+                        }
+                        else
+                        {
+                            ilgenerator.EmitNIL();
+                        }
+                        break;
+                    case ParameterKind.Key:
+                        break;
+                    case ParameterKind.Params:
+                        if (j < i)
+                        {
+                            params_hook = true;
+
+                            params_slot = ilgenerator.DeclareLocal(typeof(object[]));
+                            ilgenerator.EmitInt32(i - j);
+                            ilgenerator.Emit(OpCodes.Newarr, typeof(object));
+                            ilgenerator.EmitLocalSet(params_slot);
+                            ilgenerator.EmitLocalGet(params_slot);
+                            ilgenerator.EmitInt32(0);
+                            ilgenerator.EmitLdarg(args_slot_num);
+                            ilgenerator.EmitStoreElement(typeof(object));
+                            ilgenerator.EmitLocalGet(params_slot);
+                            continue;
+                        }
+                        else
+                        {
+                            //params_hook = true;
+                            params_slot = ilgenerator.DeclareLocal(typeof(object[]));
+                            ilgenerator.EmitInt32(0);
+                            ilgenerator.Emit(OpCodes.Newarr, typeof(object));
+                        }
+                        break;
+                    case ParameterKind.Environment:
+                        break;
+                    case ParameterKind.Whole:
+                        break;
+                    case ParameterKind.Aux:
+                        break;
+                    default:
+                        break;
+                }
+
+
+                if (rest_hook)
+                {
+                    ilgenerator.EmitLocalGet(rest_slot);
+                    ilgenerator.EmitLdarg(args_slot_num);
+                    ilgenerator.EmitCall(typeof(Cons), "Append");
+                }
+
+                if (params_hook)
+                {
+                    ilgenerator.EmitLocalGet(params_slot);
+                    ilgenerator.EmitInt32(j - ll.ParamsIndex);
+                    ilgenerator.EmitLdarg(args_slot_num);
+                    ilgenerator.EmitStoreElement(typeof(object));
+                }
+            }
+
+            for (; j < i; j++)
+            {
+                var args_slot_num = j + 1;
+                if (rest_hook)
+                {
+                    ilgenerator.EmitLocalGet(rest_slot);
+                    ilgenerator.EmitLdarg(args_slot_num);
+                    ilgenerator.EmitCall(typeof(Cons), "Append");
+                }
+
+                if (params_hook)
+                {
+                    ilgenerator.EmitLocalGet(params_slot);
+                    ilgenerator.EmitInt32(j - ll.ParamsIndex); 
+                    ilgenerator.EmitLdarg(args_slot_num);
+                    ilgenerator.EmitStoreElement(typeof(object));
+                }
+            }
+
+
+            ilgenerator.EmitCall(method);
+
+            return ilgenerator;
+        }
+
+        private static void EmitParamsMethod(MethodInfo method, MethodBuilder methodBuilder, LambdaList ll)
+        {
+            var ilgenerator = methodBuilder.GetILGenerator();
+            ilgenerator.EmitFieldSet(typeof(MultipleValues), "Void");
+            ilgenerator.EmitRet();
+        }
+
+        private static Expression CreateDefault(object default_value)
+        {
+            object defvalue = default_value;
+            if (defvalue.ToString() == "$nil$")
+            {
+                defvalue = DefinedSymbols.NIL;
+            }
+
+            return new ConstantExpression(default_value, ExpressionContext.Root);
+        }
+
+        private static LambdaMethod CreateLambda(Symbol symbol, TypeBuilder type)
+        {
+            var createdType = type.CreateType();
+
+            return Activator.CreateInstance(createdType, symbol.Name.ToString()) as LambdaMethod;
+        }
+
+        static Int64 namecounter = 0;
+
+        static string GetUniqueName(Symbol symbol)
+        {
+            if (symbol == DefinedSymbols.Lambda)
+                return "UnnamedLambda$" + namecounter++; 
+            return symbol.ToString(true) + "$" + namecounter++;
+        }
+        
+        static MethodInfo checkArgsMethod;
+
+        static Type SingleLambdaType;
+        static Type VoidLambdaType;
+        internal static Type NonZeroValuesLambdaType;
+        static Type ValuesLambdaType;
+        internal static MethodAttributes attrs = MethodAttributes.Public | MethodAttributes.HideBySig |
+                               MethodAttributes.Virtual |
+                               MethodAttributes.Final;
+
+        static FieldInfo MinArgsField = typeof(LambdaMethod).GetField("MinArgsCount");
+        static FieldInfo MaxArgsField = typeof(LambdaMethod).GetField("MaxArgsCount");
+        static CLRMethodImporter()
+        {
+            
+            checkArgsMethod = typeof(LambdaMethod).GetMethod("CheckArgsCount", BindingFlags.NonPublic | BindingFlags.Instance);
+            SingleLambdaType = typeof(SingleValueLambdaMethod);
+            VoidLambdaType = typeof(VoidReturnLambdaMethod);
+            NonZeroValuesLambdaType = typeof(NonZeroValuesLambdaMethod);
+            ValuesLambdaType = typeof(ValuesLambdaMethod);
+        }
+
+        internal static void SaveLambdas()
+        {
+            CompilerImpl.assembly.Save("LambdasHolder.dll", PortableExecutableKinds.ILOnly, ImageFileMachine.I386);
+        }
+    }
+}

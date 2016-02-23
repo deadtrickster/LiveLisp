@@ -1,0 +1,366 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>10.0.20506</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{724621DC-012E-4B44-BABB-EF876478AAD6}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>LiveLisp.Core</RootNamespace>
+    <AssemblyName>LiveLisp.Core</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <SccProjectName>
+    </SccProjectName>
+    <SccLocalPath>
+    </SccLocalPath>
+    <SccAuxPath>
+    </SccAuxPath>
+    <SccProvider>
+    </SccProvider>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <OldToolsVersion>3.5</OldToolsVersion>
+    <UpgradeBackupLocation />
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <TargetFrameworkProfile />
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PlatformTarget>x86</PlatformTarget>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Silverlight Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>Bin\SilverlightDebug</OutputPath>
+    <DefineConstants>DEBUG;TRACE;SILVERLIGHT</DefineConstants>
+    <NoStdLib>true</NoStdLib>
+    <NoConfig>true</NoConfig>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <SilverlightBuild>true</SilverlightBuild>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Silverlight Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>Bin\SilverlightRelease</OutputPath>
+    <DefineConstants>TRACE;SILVERLIGHT</DefineConstants>
+    <NoStdLib>true</NoStdLib>
+    <NoConfig>true</NoConfig>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <SilverlightBuild>true</SilverlightBuild>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>C:\Program Files\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.0\Microsoft.CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="System" Condition=" $(SilverlightBuild) != 'true' " />
+    <Reference Include="mscorlib, Version=2.0.5.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e" Condition=" '$(SilverlightBuild)' == 'true' ">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(SilverlightSdkPath)\mscorlib.dll</HintPath>
+    </Reference>
+    <Reference Include="System, Version=2.0.5.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e" Condition=" '$(SilverlightBuild)' == 'true' ">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(SilverlightSdkPath)\System.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Core, Version=2.0.5.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e" Condition=" '$(SilverlightBuild)' == 'true' ">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(SilverlightSdkPath)\System.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Core" Condition=" '$(SilverlightBuild)' != 'true' ">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data" />
+    <Reference Include="System.Dynamic" />
+    <Reference Include="System.Xml" Condition=" $(SilverlightBuild) != 'true' " />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AST\ClrAttributeMark.cs" />
+    <Compile Include="AST\Declaration.cs" />
+    <Compile Include="AST\DeclarationsContainer.cs" />
+    <Compile Include="AST\Expression.cs" />
+    <Compile Include="AST\ExpressionContext.cs" />
+    <Compile Include="AST\Expressions\BlockExpression.cs" />
+    <Compile Include="AST\Expressions\CallExpression.cs" />
+    <Compile Include="AST\Expressions\CatchExpression.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrBinaryOperator.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrClassExpression.cs" />
+    <None Include="AST\Expressions\CLR\ClrConstructor.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrConstantExpression.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrDelegateExpression.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrEnumExpression.cs" />
+    <None Include="AST\Expressions\CLR\ClrEnumMember.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrFieldExpression.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrIfExpression.cs" />
+    <Compile Include="AST\Expressions\CLR\CLRILExpression.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrMemberExpression.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrMethodExpression.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrNewExpression.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrPropertyExpression.cs" />
+    <Compile Include="AST\Expressions\CLR\ClrTryExpression.cs" />
+    <Compile Include="AST\Expressions\CLR\Operators\SimpleAddOperator.cs" />
+    <Compile Include="AST\Expressions\ConstantExpression.cs" />
+    <Compile Include="AST\Expressions\EvalWhenExpression.cs" />
+    <Compile Include="AST\Expressions\FletExpression.cs" />
+    <Compile Include="AST\Expressions\FunctionExpression.cs" />
+    <Compile Include="AST\Expressions\GoExpression.cs" />
+    <Compile Include="AST\Expressions\IfExpression.cs" />
+    <Compile Include="AST\Expressions\ILCodeExpression.cs" />
+    <Compile Include="AST\Expressions\LabelsExpression.cs" />
+    <Compile Include="AST\Expressions\LetExpression.cs" />
+    <Compile Include="AST\Expressions\LetStarExpression.cs" />
+    <Compile Include="AST\Expressions\LoadTimeValue.cs" />
+    <Compile Include="AST\Expressions\LocallyExpression.cs" />
+    <Compile Include="AST\Expressions\MacroletExpression.cs" />
+    <Compile Include="AST\Expressions\MultipleValueCallExpression.cs" />
+    <Compile Include="AST\Expressions\MultipleValueProg1Expression.cs" />
+    <Compile Include="AST\Expressions\PrognExpression.cs" />
+    <Compile Include="AST\Expressions\ProgvExpression.cs" />
+    <Compile Include="AST\Expressions\ReturnFromExpression.cs" />
+    <Compile Include="AST\Expressions\SetqExpression.cs" />
+    <Compile Include="AST\Expressions\SymbolMacroletExpression.cs" />
+    <Compile Include="AST\Expressions\TagBodyExpression.cs" />
+    <Compile Include="AST\Expressions\TheExpression.cs" />
+    <Compile Include="AST\Expressions\ThrowExpression.cs" />
+    <Compile Include="AST\Expressions\UnwindProtectExpression.cs" />
+    <Compile Include="AST\Expressions\VariableExpression.cs" />
+    <Compile Include="AST\FLMBaseExpression.cs" />
+    <Compile Include="AST\FormsContainer.cs" />
+    <Compile Include="AST\FunctionNameDesignator.cs" />
+    <Compile Include="AST\IASTWalker.cs" />
+    <Compile Include="AST\IBarrier.cs" />
+    <Compile Include="AST\IDeclarationsContainer.cs" />
+    <Compile Include="AST\IImplicitProgn.cs" />
+    <Compile Include="AST\INewBindingsProvider.cs" />
+    <Compile Include="AST\LambdaFunctionDesignator.cs" />
+    <Compile Include="AST\LambdaOverloads.cs" />
+    <Compile Include="AST\LetLetStartBase.cs" />
+    <Compile Include="AST\LispTypeSpecifier.cs" />
+    <Compile Include="AST\MethodInfoFunctionDesignator.cs" />
+    <Compile Include="AST\SpecialDeclaration.cs" />
+    <Compile Include="AST\StaticTypeResolver.cs" />
+    <Compile Include="AST\SymbolFunctionDesignator.cs" />
+    <Compile Include="AST\SyntaxBinding.cs" />
+    <Compile Include="AST\TaggedStatements.cs" />
+    <Compile Include="BuiltIns\Arrays\LispArray.cs" />
+    <Compile Include="BuiltIns\Characters\CharactersDictionary.cs" />
+    <Compile Include="BuiltIns\Characters\LispChar.cs" />
+    <Compile Include="BuiltIns\CLR\CLRDictionary.cs" />
+    <Compile Include="BuiltIns\Conditions\Conditions.cs" />
+    <Compile Include="BuiltIns\Conditions\ConditionsDictionary.cs" />
+    <Compile Include="BuiltIns\Conditions\HRManager.cs" />
+    <Compile Include="BuiltIns\Conses\ConsesDictionary.cs" />
+    <Compile Include="BuiltIns\DataAndControlFlow\DataAndControlFlowDictionary.cs" />
+    <Compile Include="BuiltIns\Environment\EnvironmentDictionary.cs" />
+    <Compile Include="BuiltIns\EvaluationAndCompilation\EvaluationAndCompilationDictionary.cs" />
+    <Compile Include="BuiltIns\Filenames\FilenamesDictionary.cs" />
+    <Compile Include="BuiltIns\Files\FilesDictionary.cs" />
+    <Compile Include="BuiltIns\Hashtables\HashtablesDictionary.cs" />
+    <Compile Include="BuiltIns\Hashtables\LispHashtable.cs" />
+    <Compile Include="BuiltIns\Numbers\LispNumbers.cs" />
+    <Compile Include="BuiltIns\Numbers\NumbersDictionary.cs" />
+    <Compile Include="BuiltIns\Objects\ObjectsDictionary.cs" />
+    <Compile Include="BuiltIns\Packages\PackagesDictionary.cs" />
+    <Compile Include="BuiltIns\Printer\PrinterDictionary.cs" />
+    <Compile Include="BuiltIns\Reader\ReaderDictionary.cs" />
+    <Compile Include="BuiltIns\Sequences\ILispSequence.cs" />
+    <Compile Include="BuiltIns\Sequences\SequencesDictionary.cs" />
+    <Compile Include="BuiltIns\Streams\StreamsDictionary.cs" />
+    <Compile Include="BuiltIns\Strings\LispString.cs" />
+    <Compile Include="BuiltIns\Strings\StringsDictionary.cs" />
+    <Compile Include="BuiltIns\Structures\StructuresDictionary.cs" />
+    <Compile Include="BuiltIns\Symbols\Symbol.cs" />
+    <Compile Include="BuiltIns\Symbols\SymbolsDictionary.cs" />
+    <Compile Include="BuiltIns\SystemConstruction\SystemConstructionDictionary.cs" />
+    <Compile Include="BuiltIns\TypesAndClasses\TypeName.cs" />
+    <Compile Include="BuiltIns\TypesAndClasses\TypesAndClassesDictionary.cs" />
+    <None Include="BuiltIns\DictionaryImplementationState.xsd" />
+    <None Include="CLOS\CLOSClass.cs" />
+    <Compile Include="CLOS\Class.cs" />
+    <Compile Include="CLOS\Standard classes\CLOS_String.cs" />
+    <Compile Include="CLOS\TypeManager.cs" />
+    <Compile Include="Compiler\ClousresWalker.cs" />
+    <Compile Include="Compiler\ClrMethodImporter.cs" />
+    <Compile Include="Compiler\CompilerImpl.cs" />
+    <None Include="Compiler\CLRMethodImporter.cs1" />
+    <Compile Include="Compiler\CompilationContext.cs" />
+    <Compile Include="Compiler\ConstantsManager.cs" />
+    <Compile Include="Compiler\Declarations.cs" />
+    <Compile Include="Compiler\DefaultASTCompiler.cs" />
+    <Compile Include="Compiler\Helpers.cs" />
+    <Compile Include="Compiler\IGenerator.cs" />
+    <Compile Include="Compiler\Instructions.cs" />
+    <Compile Include="Compiler\LambdaLists\LambdaList.cs" />
+    <Compile Include="Compiler\Binding.cs" />
+    <None Include="Compiler\DefaultASTCompiler.cs1" />
+    <Compile Include="Compiler\ILGeneratorExt.cs" />
+    <Compile Include="Compiler\LambdaLists\LambdaAttributesForDotNetMethods.cs" />
+    <Compile Include="Compiler\LambdaGenerator.cs" />
+    <None Include="AST\Expressions\CLR\Syntax.llisp" />
+    <None Include="DictionarySummary.xsd" />
+    <Compile Include="Compiler\LispFunction.cs" />
+    <Compile Include="Compiler\MultipleValues.cs" />
+    <Compile Include="Compiler\StaticScope.cs" />
+    <Compile Include="DefinedSymbols.cs" />
+    <None Include="Eval\Translator.cs1" />
+    <Compile Include="Eval\Parsing\ILParser.cs" />
+    <Compile Include="Eval\Parsing\LambdaListParser.cs" />
+    <Compile Include="Eval\Parsing\Parser.cs" />
+    <Compile Include="Eval\Parsing\SpecialOpsParser.cs" />
+    <Compile Include="Eval\Translator.cs" />
+    <Compile Include="Exceptions.cs" />
+    <Compile Include="Extensions.cs" />
+    <Compile Include="Initialization.cs" />
+    <Compile Include="Interpreter\IEvalWalker.cs" />
+    <Compile Include="Interpreter\InterpretedLispFunction.cs" />
+    <Compile Include="Interpreter\Interpreter.cs" />
+    <Compile Include="LiteralRadixConverter.cs" />
+    <Compile Include="LLOS\Interfaces.cs" />
+    <Compile Include="Printer\PrinterDictionary.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Reader\NumberParser.cs" />
+    <Compile Include="Reader\Read.cs" />
+    <None Include="Reader\ReaderDictionary_old.cs" />
+    <Compile Include="Reader\ReaderMacro.cs" />
+    <Compile Include="Reader\ReaderMacroAttribute.cs" />
+    <Compile Include="Reader\Readtable.cs" />
+    <Compile Include="Reader\SourceSpan.cs" />
+    <Compile Include="Reader\SpanCollection.cs" />
+    <Compile Include="ReflectionUtils.cs" />
+    <Compile Include="Runtime\Boxing.cs" />
+    <Compile Include="Runtime\BuiltAttribute.cs" />
+    <Compile Include="Runtime\IdDispenser.cs" />
+    <Compile Include="Runtime\LispMarshaler.cs" />
+    <Compile Include="Runtime\MetadataCache.cs" />
+    <Compile Include="Runtime\OperatorsCache\AddOperatorCache.cs" />
+    <Compile Include="Runtime\OperatorsCache\DivOperatorCache.cs" />
+    <Compile Include="Runtime\OperatorsCache\EqaulityOp.cs" />
+    <Compile Include="Runtime\OperatorsCache\GeneralHelpers.cs" />
+    <Compile Include="Runtime\OperatorsCache\GreaterOrEqualOp.cs" />
+    <Compile Include="Runtime\OperatorsCache\GreaterThenOperator.cs" />
+    <Compile Include="Runtime\OperatorsCache\InequalityOp.cs" />
+    <Compile Include="Runtime\OperatorsCache\LessOrEqualOp.cs" />
+    <Compile Include="Runtime\OperatorsCache\LessThenOperator.cs" />
+    <Compile Include="Runtime\OperatorsCache\MulOperatorCache.cs" />
+    <Compile Include="Runtime\OperatorsCache\Operators.cs" />
+    <Compile Include="Runtime\OperatorsCache\SubOperatorCache.cs" />
+    <Compile Include="Runtime\RuntimeHelpers.cs" />
+    <Compile Include="Runtime\Settings.cs" />
+    <Compile Include="Runtime\StrongBox.cs" />
+    <Compile Include="Runtime\ThreadSlot.cs" />
+    <Compile Include="Types\FunctionName.cs" />
+    <Compile Include="Types\Readtable.cs" />
+    <Compile Include="Types\Streams\BidirectionalStream.cs" />
+    <None Include="Types\Streams\BinaryInputStream.cs" />
+    <Compile Include="Types\Streams\BinaryOutputStream.cs" />
+    <Compile Include="Types\Streams\CharacterStream.cs" />
+    <Compile Include="Types\BigInteger.cs" />
+    <Compile Include="Types\Complex.cs" />
+    <Compile Include="Types\Cons.cs" />
+    <Compile Include="Types\ILispNumber.cs" />
+    <Compile Include="Types\MathResources.Designer.cs" />
+    <Compile Include="Types\Package.cs" />
+    <Compile Include="Types\Rational.cs" />
+    <Compile Include="Types\Streams\ConcatenatedStream.cs" />
+    <Compile Include="Types\Streams\Copy of BinaryInputStream.cs" />
+    <Compile Include="Types\Streams\ILispStream.cs" />
+    <Compile Include="Types\Streams\LChar.cs" />
+    <Compile Include="Types\SurrogateNilCons.cs" />
+    <Compile Include="Types\Symbol.cs" />
+    <Compile Include="Types\Unbound.cs" />
+    <Compile Include="Utilites\Wildcard.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="BuiltIns\DataAndControlFlow\DataAndControlFlow.xml" />
+    <Content Include="BuiltIns\DictionaryStyle.xslt" />
+    <Content Include="Compiler\Notes.txt" />
+    <Content Include="Eval\Notes.txt" />
+    <Content Include="ForeignCode.txt" />
+    <Content Include="HowToImplementConstants.txt" />
+    <Content Include="LLOS\Description.txt" />
+    <Content Include="Notes.txt" />
+    <Content Include="Printer\Notes.txt" />
+    <Content Include="Reader\Notes.txt" />
+    <Content Include="Reader\ReaderDictionary.xml" />
+    <Content Include="SpecialOperators.htm" />
+    <Content Include="Todo.txt" />
+    <Content Include="Types\Notes.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Types\MathResources.resx">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.VisualBasic.PowerPacks.10.0">
+      <Visible>False</Visible>
+      <ProductName>Microsoft Visual Basic PowerPacks 10.0</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Windows.Installer.3.1">
+      <Visible>False</Visible>
+      <ProductName>Windows Installer 3.1</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" Condition=" '$(SilverlightTreeBuild)' != 'true' " />
+  <Import Project="$(MSBuildExtensionsPath)\Microsoft\Silverlight\v2.0\Microsoft.Silverlight.CSharp.targets" Condition=" '$(SilverlightTreeBuild)' == 'true' " />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

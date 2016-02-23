@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema id="DictionaryImplementationState"
+    targetNamespace="http://livelisp.com/DictionaryImplementationState.xsd"
+    elementFormDefault="qualified"
+    xmlns="http://livelisp.com/DictionaryImplementationState.xsd"
+    xmlns:mstns="http://livelisp.com/DictionaryImplementationState.xsd"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+>
+  <xs:element name="Dictionary">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="SpecialOperators" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element maxOccurs="unbounded" name="SpecialOperator">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="Name" type="xs:string" use="required" />
+                      <xs:attribute name="Implemented" type="xs:boolean" use="required" />
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="Functions" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="Function" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="Name" type="xs:string" use="required" />
+                      <xs:attribute name="Implemented" type="xs:boolean" use="required" />
+                      <xs:attribute name="ErrorChecking" type="xs:boolean" use="optional" default="false" />
+                      <xs:attribute name="Conditions" type="xs:boolean" use="optional" default="false"  />
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="Variables" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="Variable">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="Name" type="xs:string" use="required" />
+                      <xs:attribute name="Implemented" type="xs:boolean" use="required" />
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="Accessors" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="Accessor">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="Name" type="xs:string" use="required" />
+                      <xs:attribute name="GetImpemeted" type="xs:boolean" use="required" />
+                      <xs:attribute name="SetImplemented" type="xs:boolean" use="required" />
+                      <xs:attribute name="ErrorChecking" type="xs:boolean" use="required" />
+                      <xs:attribute name="Conditions" type="xs:boolean" use="required" />
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="Conditions" minOccurs ="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element maxOccurs="unbounded" name="Condition">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="Name" type="xs:string" use="required" />
+                      <xs:attribute name="Implemented" type="xs:boolean" use="required" />
+                      <xs:attribute name="Notes" type="xs:string" use="optional"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="Name" type="xs:string" use="required" />
+      <xs:attribute name="AllImplemented" type="xs:boolean" use="optional"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
